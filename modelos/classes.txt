@@ -1,0 +1,44 @@
+@startuml
+class User {
+    + id: Integer
+    + name: String
+    + email: String
+    + phone: String
+    + role: String  // elderly, contact, nurse
+    + password_hash: String
+}
+
+class Patient {
+    + id: Integer
+    + user_id: Integer
+    + medical_conditions: Text
+}
+
+class Emergency {
+    + id: Integer
+    + patient_id: Integer
+    + timestamp: DateTime
+    + location: String
+    + status: String
+    + details: JSON  // Stores symptoms, indicators, etc.
+}
+
+class NotificationConfig {
+    + id: Integer
+    + patient_id: Integer
+    + notify_contacts: Boolean
+    + notify_nurses: Boolean
+}
+
+class Contact {
+    + id: Integer
+    + patient_id: Integer
+    + contact_id: Integer
+}
+
+User "1" -- "1" Patient : owns
+Patient "1" -- "0..*" Emergency : creates
+Patient "1" -- "1" NotificationConfig : configures
+Patient "1" -- "0..*" Contact : notifies
+Contact "0..*" -- "1" User : is
+@enduml
