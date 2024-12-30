@@ -1,56 +1,39 @@
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from pydantic import BaseModel, EmailStr, constr
+from typing import Optional, List, Literal
+from datetime import date
 
-# Usuários
 class UserCreate(BaseModel):
-    name: str
-    email: str
-    phone: str
-    role: str
-    password: str
+    user_name: str
+    user_email: EmailStr
+    user_phone: str
+    user_role: Literal["contact", "client", "attendand"]
+    user_password: constr(min_length=8)
+    user_birthday: Optional[date] = None
 
-class UserResponse(BaseModel):
-    id: int
-    name: str
-    email: str
-    phone: str
-    role: str
-
-# Pacientes
-class PatientCreate(BaseModel):
+class ClientCreate(BaseModel):
     user_id: int
-    medical_conditions: Optional[str]
+    team_id: int = None  # Opcional (nullable=True)
+    user_address: str
+    user_neighborhood: str
+    user_city: str
+    user_state: str
+    user_code_address: constr(regex=r'^\d{5}-\d{3}$')
 
-class PatientUpdate(BaseModel):
-    medical_conditions: Optional[str]
-    notify_contacts: Optional[bool]
-    notify_nurses: Optional[bool]
 
-class PatientResponse(BaseModel):
-    id: int
-    user_id: int
-    medical_conditions: Optional[str]
-    notify_contacts: bool
-    notify_nurses: bool
-
-# Contatos
 class ContactCreate(BaseModel):
-    patient_id: int
-    contact_id: int
+    user_client_id: int
+    user_contact_id: int
 
-# Emergências
-class EmergencyCreate(BaseModel):
-    patient_id: int
-    location: Optional[str]
-    details: Dict[str, Any]
+class NotificationConfigUpdate(BaseModel):
+    notify_level: Optional[int] = 1
 
-class EmergencyUpdate(BaseModel):
-    status: str
+class TeamCreate(BaseModel):
+    team_name: str  # Obrigatório (nullable=False)
 
-class EmergencyResponse(BaseModel):
-    id: str
-    patient_id: int
-    location: Optional[str]
-    details: Dict[str, Any]
-    status: str
-    timestamp: str
+class ContactCreateMany(BaseModel):
+    contacts: List[ContactCreate]
+
+class AttendandCreate(BaseModel):
+    user_id: int
+    team_id: int
+    attendant_function: Literal["nurse", "doctor", "assistant"]

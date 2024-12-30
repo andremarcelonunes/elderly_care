@@ -1,11 +1,13 @@
+from database import db_instance
 from models import Base
-from database import engine
 
-# Cria as tabelas no banco de dados
-def create_tables():
-    print("Criando tabelas no banco de dados...")
-    Base.metadata.create_all(bind=engine)
-    print("Tabelas criadas com sucesso!")
+# Cria e dropa as tabelas no banco de dados
+def recreate_tables():
+    print("Dropping existing tables...")
+    Base.metadata.drop_all(bind=db_instance.engine)
+    print("Creating tables...")
+    Base.metadata.create_all(bind=db_instance.engine)
+    print("Tables recreated successfully!")
 
 if __name__ == "__main__":
-    create_tables()
+    recreate_tables()

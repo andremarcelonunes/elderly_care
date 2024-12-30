@@ -1,83 +1,99 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from bson import ObjectId, SON
-from models import Patient
-from backendeldery.database import get_db
-from backendeldery.database_nosql import emergency_collection
-from schemas import (
-    UserCreate, PatientCreate, PatientUpdate, ContactCreate,
-    EmergencyCreate, EmergencyUpdate
-)
-from backendeldery.crud import create_user, get_user, create_patient, update_patient, add_contact
+from database import db_instance
+from crud import crud_user, crud_client, crud_contact, crud_notification, crud_team, crud_attendant
+from schemas import UserCreate, ClientCreate,  NotificationConfigUpdate, TeamCreate, ContactCreateMany, AttendandCreate
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exceptions import RequestValidationError
+import logging
 
 app = FastAPI()
 
-# Cadastrar usuário
-@app.post("/users/")
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    return create_user(db, user)
 
-# Pesquisar usuário
-@app.get("/users/{user_id}")
-def get_user_info(user_id: int, db: Session = Depends(get_db)):
-    user = get_user(db, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
-# Criar paciente
-@app.post("/patients/")
-def create_patient_endpoint(patient: PatientCreate, db: Session = Depends(get_db)):
-    return create_patient(db, patient)
-
-# Consultar paciente
-@app.get("/patients/{patient_id}")
-def get_patient_info(patient_id: int, db: Session = Depends(get_db)):
-    # Filtra o paciente pela coluna id da tabela Patient
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    return patient
-
-# Alterar dados do paciente
-@app.put("/patients/{patient_id}")
-def update_patient_info(patient_id: int, patient: PatientUpdate, db: Session = Depends(get_db)):
-    updated_patient = update_patient(db, patient_id, patient)
-    if not updated_patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    return updated_patient
-
-# Associar contato ao paciente
-@app.post("/contacts/")
-def add_contact_endpoint(contact: ContactCreate, db: Session = Depends(get_db)):
-    return add_contact(db, contact)
-
-# Criar emergência
-@app.post("/emergencies/")
-async def create_emergency(emergency: EmergencyCreate):
-    result = await emergency_collection.insert_one(emergency.dict())
-    return {"message": "Emergency created", "emergency_id": str(result.inserted_id)}
-
-# Atender emergência
-@app.put("/emergencies/{emergency_id}")
-async def attend_emergency(emergency_id: str, update: EmergencyUpdate):
-    # Certifique-se de converter o ID para ObjectId
-    result = await emergency_collection.update_one(
-        {"_id": ObjectId(emergency_id)},
-        {"$set": {"status": update.status}}
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
     )
 
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Emergency not found")
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
 
-    return {"message": "Emergency updated"}
+@app.exception_handler(Exception)
+async def generic_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected error occurred. Please try again later."},
+    )
 
-# Listar emergências por paciente
-@app.get("/emergencies/patient/{patient_id}")
-async def list_emergencies(patient_id: int):
-    # Certifique-se de que patient_id é um inteiro e compatível com o banco
-    emergencies = await emergency_collection.find({"patient_id": patient_id}).to_list(100)
-    # Converter o campo _id de ObjectId para string
-    for emergency in emergencies:
-        emergency["_id"] = str(emergency["_id"])
-    return emergencies
+
+
+
+def get_db():
+    yield from db_instance.get_db()
+
+@app.post("/users/register/")
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    try:
+        return crud_user.create(db, user)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/clients/register/")
+def register_client(client: ClientCreate, db: Session = Depends(get_db)):
+    try:
+        return crud_client.create(db, client)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/contacts/register_many/")
+def register_contacts(contacts: ContactCreateMany, db: Session = Depends(get_db)):
+    try:
+        return crud_contact.create_many(db, contacts.contacts)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/attendants/register/")
+def register_attendant(attendant: AttendandCreate, db: Session = Depends(get_db)):
+    try:
+        attendant_data = attendant.dict()
+        response = crud_attendant.create(db, attendant_data)
+        return response
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+@app.post("/teams/register/")
+def register_team(team: TeamCreate, db: Session = Depends(get_db)):
+    try:
+        return crud_team.create(db, team)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/notifications/emergency/{client_id}")
+def configure_emergency(client_id: int, config: NotificationConfigUpdate, db: Session = Depends(get_db)):
+    try:
+        notification = crud_notification.update_or_create(db, client_id, config)
+        return notification
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
