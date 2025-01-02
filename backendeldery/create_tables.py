@@ -1,13 +1,10 @@
-from database import db_instance
-from models import Base
+from database import initialize_database
 
-# Cria e dropa as tabelas no banco de dados
+# Recria tabelas e triggers
 def recreate_tables():
-    print("Dropping existing tables...")
-    Base.metadata.drop_all(bind=db_instance.engine)
-    print("Creating tables...")
-    Base.metadata.create_all(bind=db_instance.engine)
-    print("Tables recreated successfully!")
+    print("Recreating DB...")
+    initialize_database()
+    print("DB was recreated successfully!")
 
 if __name__ == "__main__":
     recreate_tables()

@@ -1,15 +1,13 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request, Header
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from database import db_instance
-from crud import crud_user, crud_client, crud_contact, crud_notification, crud_team, crud_attendant
-from schemas import UserCreate, ClientCreate,  NotificationConfigUpdate, TeamCreate, ContactCreateMany, AttendandCreate
+from crud.crud_user import crud_user
+from schemas import UserCreate
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
-import logging
 
 app = FastAPI()
-
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
@@ -32,67 +30,33 @@ async def generic_exception_handler(request, exc):
         content={"detail": "An unexpected error occurred. Please try again later."},
     )
 
-
-
-
 def get_db():
+    """
+    Dependency para obter a sessão do banco de dados.
+    """
     yield from db_instance.get_db()
 
 @app.post("/users/register/")
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
+def register_user(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+    request: Request = None,
+    x_user_id: int = Header(...),  # Header obrigatório para obter o user_id
+):
+    """
+    Endpoint para registrar um novo usuário com auditoria.
+    """
     try:
-        return crud_user.create(db, user)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Captura o IP do cliente
+        client_ip = request.client.host if request else "unknown"
 
-@app.post("/clients/register/")
-def register_client(client: ClientCreate, db: Session = Depends(get_db)):
-    try:
-        return crud_client.create(db, client)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/contacts/register_many/")
-def register_contacts(contacts: ContactCreateMany, db: Session = Depends(get_db)):
-    try:
-        return crud_contact.create_many(db, contacts.contacts)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/attendants/register/")
-def register_attendant(attendant: AttendandCreate, db: Session = Depends(get_db)):
-    try:
-        attendant_data = attendant.dict()
-        response = crud_attendant.create(db, attendant_data)
-        return response
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-@app.post("/teams/register/")
-def register_team(team: TeamCreate, db: Session = Depends(get_db)):
-    try:
-        return crud_team.create(db, team)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.put("/notifications/emergency/{client_id}")
-def configure_emergency(client_id: int, config: NotificationConfigUpdate, db: Session = Depends(get_db)):
-    try:
-        notification = crud_notification.update_or_create(db, client_id, config)
-        return notification
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Passa as informações de auditoria para o CRUD
+        return crud_user.create(
+            db=db,
+            obj_in=user,
+            created_by=x_user_id,
+            user_ip=client_ip
+        )
     except HTTPException as e:
         raise e
     except Exception as e:

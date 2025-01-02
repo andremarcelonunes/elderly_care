@@ -1,18 +1,15 @@
 from models import User, Client, Contact, NotificationConfig, Team, Attendant
 from passlib.context import CryptContext
 from fastapi import HTTPException
-import logging
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
 def obj_to_dict(obj, exclude_fields=[]):
-    """
-    Converte um objeto SQLAlchemy em um dicionário, com opção de excluir campos específicos.
-    """
     if not obj:
         return None
     return {col.name: getattr(obj, col.name) for col in obj.__table__.columns if col.name not in exclude_fields}
-    return {col.name: getattr(obj, col.name) for col in obj.__table__.columns if col.name not in exclude_fields}
+
 
 class CRUDBase:
     def __init__(self, model):
@@ -44,43 +41,25 @@ class CRUDBase:
         return obj_to_dict(obj)
 
     def validate_foreign_keys(self, db, obj_in):
-        """
-        Verifica se todas as chaves estrangeiras existem no banco de dados
-        """
-        logging.error(f'Entrou em validate_foreign_keys')
         for fk in self.model.__table__.foreign_keys:
-            column_name = fk.parent.name  # Nome da coluna local (ex.: user_id)
+            column_name = fk.parent.name  # Nome da coluna local
             related_model = fk.column.table  # Tabela relacionada
             related_value = getattr(obj_in, column_name, None)
 
-            logging.error(
-                f'column_name : {column_name}, related_model: {related_model.name}, related_value: {related_value}')
-
+            # Se o valor for None, não valida a chave estrangeira
             if related_value is not None:
-                # Mapear tabela para modelo ORM
-                table_to_model = {
-                    "users": User,
-                    "teams": Team,
-                    "clients": Client,
-                    "contacts": Contact,
-                    "notification_configs": NotificationConfig,
-                    "attendants": Attendant
-                }
-                model_class = table_to_model.get(related_model.name)
-                if not model_class:
-                    raise Exception(f"Model class for table {related_model.name} not found")
-
-                # Consultar usando o modelo ORM
-                related_obj = db.query(model_class).filter(
-                    getattr(model_class, fk.column.name) == related_value
+                # Mapeia a tabela para o modelo SQLAlchemy correspondente
+                related_model_class = db.registry.mappers[related_model]
+                related_obj = db.query(related_model_class).filter(
+                    getattr(related_model_class, fk.column.name) == related_value
                 ).first()
+
                 if not related_obj:
-                    logging.error(
-                        f'Erro de referência: {related_model.name}.{fk.column.name} com valor {related_value} não encontrado.')
                     raise HTTPException(
                         status_code=400,
                         detail=f"Invalid foreign key: {related_model.name}.{fk.column.name} with value {related_value} does not exist."
                     )
+
 
 class CRUDUser(CRUDBase):
     def __init__(self):
@@ -92,14 +71,15 @@ class CRUDUser(CRUDBase):
         obj = self.model(**user_data)
         existing_email = db.query(User).filter(User.user_email == obj_in.user_email).first()
         existing_phone = db.query(User).filter(User.user_phone == obj_in.user_phone).first()
-        if existing_email :
+        if existing_email:
             raise HTTPException(status_code=400, detail="Email already exists")
-        if existing_phone :
+        if existing_phone:
             raise HTTPException(status_code=400, detail="Phone already exists")
         db.add(obj)
         db.commit()
         db.refresh(obj)
-        return obj_to_dict(obj, exclude_fields=["password_hash"])
+        return {"user_id": obj.user_id}
+
 
 class CRUDClient(CRUDBase):
     def __init__(self):
@@ -115,6 +95,7 @@ class CRUDClient(CRUDBase):
         db.commit()
         db.refresh(obj)
         return obj_to_dict(obj)
+
 
 class CRUDContact(CRUDBase):
     def __init__(self):
@@ -143,6 +124,7 @@ class CRUDContact(CRUDBase):
                 responses.append(obj_to_dict(obj))
         return responses
 
+
 class CRUDNotificationConfig(CRUDBase):
     def __init__(self):
         super().__init__(NotificationConfig)
@@ -159,13 +141,16 @@ class CRUDNotificationConfig(CRUDBase):
         db.refresh(notification)
         return obj_to_dict(notification)
 
+
 class CRUDTeam(CRUDBase):
     def __init__(self):
         super().__init__(Team)
 
+
 class CRUDAttendant(CRUDBase):
     def __init__(self):
         super().__init__(Attendant)
+
 
 crud_user = CRUDUser()
 crud_client = CRUDClient()
