@@ -20,10 +20,11 @@ class User(Base):
     user_ip = Column(String, nullable=True)
 
     # Relacionamento com ClientContact (todos os clientes para os quais o usuário é contato)
-    client_contacts = relationship("ClientContact", backref="contact")
-    # Relacionamento reverso
+    client_contacts = relationship("ClientContact", back_populates="contact")
     client = relationship("Client", uselist=False, back_populates="user")
-    attendant = relationship("Attendant", uselist=False, back_populates="user")
+    patient_progress = relationship("PatientProgress", back_populates="attendant")
+    tickets = relationship("Ticket", back_populates="attendant")
+
 
 class Function(Base):
     __tablename__ = "functions"
@@ -39,7 +40,7 @@ class Function(Base):
 
     # Relacionamento com Attendant (único)
     attendants = relationship("Attendant", back_populates="function")
-    # Relacionamento com Document (muitos-para-muitos)
+    #Relacionamento com Document (muitos-para-muitos)
     documents = relationship("Document", secondary="elderly_care.document_function", back_populates="functions")
 
 class Team(Base):
@@ -55,17 +56,14 @@ class Team(Base):
     user_ip = Column(String, nullable=True)
 
     # Relacionamento com clientes
-    teams = relationship("Team", secondary="elderly_care.attendant_team", back_populates="attendants")
     clients = relationship("Client", back_populates="team")
+    attendants = relationship("Attendant", secondary="elderly_care.attendant_team", back_populates="teams")
 
 class Attendant(Base):
     __tablename__ = "attendants"
-    __table_args__ = (
-        UniqueConstraint("user_id", name="unique_user_id"),  # Garante unicidade para user_id
-        {"schema": "elderly_care"},
-    )
-    user_id = Column(Integer, ForeignKey("elderly_care.users.user_id"), nullable=False, primary_key=True, index=True)
-    function_id = Column(Integer, ForeignKey("elderly_care.functions.function_id"), nullable=False)
+    __table_args__ = {"schema": "elderly_care"}
+    user_id = Column(Integer, ForeignKey("elderly_care.users.user_id"), index=True, primary_key=True)
+    function_id = Column(Integer, ForeignKey("elderly_care.functions.function_id"), index=True, nullable=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by = Column(Integer, nullable=False)
@@ -73,18 +71,17 @@ class Attendant(Base):
     user_ip = Column(String, nullable=True)
 
     # Relacionamentos
+    function = relationship("Function", back_populates="attendants")
     teams = relationship("Team", secondary="elderly_care.attendant_team", back_populates="attendants")
-    user = relationship("User", back_populates="attendant")
     availabilities = relationship("Availability", back_populates="attendant")
     appointments = relationship("Appointment", back_populates="attendant")
-    function = relationship("Function", back_populates="attendants")
 
 
 AttendantTeam = Table(
     "attendant_team",
     Base.metadata,
-    Column("attendant_id", Integer, ForeignKey("elderly_care.attendants.user_id", ondelete="CASCADE"), primary_key=True),
-    Column("team_id", Integer, ForeignKey("elderly_care.teams.team_id", ondelete="CASCADE"), primary_key=True),
+    Column("attendant_id", Integer, ForeignKey("elderly_care.attendants.user_id"), primary_key=True),
+    Column("team_id", Integer, ForeignKey("elderly_care.teams.team_id"), primary_key=True),
     schema="elderly_care"
 )
 
@@ -110,6 +107,7 @@ class Client(Base):
     team = relationship("Team", back_populates="clients")
     user = relationship("User", back_populates="client")
     appointments = relationship("Appointment", back_populates="client")
+    record = relationship("Record", back_populates="client", uselist=False)
 
 
 class ClientContact(Base):
@@ -122,6 +120,8 @@ class ClientContact(Base):
     created_by = Column(Integer, nullable=False)
     updated_by = Column(Integer, nullable=True)
     user_ip = Column(String, nullable=True)
+
+    contact = relationship("User", back_populates="client_contacts")
 
 class NotificationConfig(Base):
     __tablename__ = "notification_configs"
@@ -253,6 +253,7 @@ class Document(Base):
     __tablename__ = "documents"
     __table_args__ = {"schema": "elderly_care"}
     document_id = Column(Integer, primary_key=True, index=True)
+    record_id = Column(Integer, ForeignKey("elderly_care.records.record_id"), nullable=False)
     user_id = Column(Integer, ForeignKey("elderly_care.clients.user_id"), nullable=True)  # Cliente (opcional)
     document_type = Column(String(200), nullable=False)
     document_category = Column(String(200), nullable=False)
@@ -266,7 +267,8 @@ class Document(Base):
     index_status = Column(String(20), nullable=True)
 
     # Relacionamentos
-    client = relationship("Client", back_populates="documents")  # Relacionamento com Cliente
+  #  client = relationship("Client", back_populates="documents")  # Relacionamento com Cliente
+    record = relationship("Record", back_populates="documents")
     functions = relationship("Function", secondary="elderly_care.document_function", back_populates="documents")
 
 DocumentFunction = Table(

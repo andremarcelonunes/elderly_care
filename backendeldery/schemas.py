@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr,  Field, model_validator
+from pydantic import BaseModel, EmailStr,  Field, model_validator, ValidationError
 from typing import Optional, List, Literal
 from datetime import date
 from pydantic import BaseModel, Field, EmailStr, model_validator
@@ -14,16 +14,19 @@ class UserCreate(BaseModel):
     user_password: str = Field(..., min_length=8)  # Validação básica de tamanho mínimo
     user_birthday: Optional[date] = None
 
-    @model_validator(mode="after")  # Substitui o @root_validator
+    @model_validator(mode="after")
     def validate_password(cls, values):
         password = values.user_password
         if password:
+            errors = []
             if not any(char.isupper() for char in password):
-                raise ValueError("Password must contain at least one uppercase letter.")
+                errors.append("Password must contain at least one uppercase letter.")
             if not any(char.isdigit() for char in password):
-                raise ValueError("Password must contain at least one number.")
+                errors.append("Password must contain at least one number.")
             if not any(char in "@$!%*?&" for char in password):
-                raise ValueError("Password must contain at least one special character (@$!%*?&).")
+                errors.append("Password must contain at least one special character (@$!%*?&).")
+            if errors:
+                raise ValueError(", ".join(errors))
         return values
     class Config:
         json_schema_extra = {
