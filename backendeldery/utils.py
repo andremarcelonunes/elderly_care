@@ -81,6 +81,8 @@ def validate_foreign_key(db: Session, model, field_name: str, value: int):
 
 def current_timestamp() -> str:
     """
+
+
     Retorna o timestamp atual no formato ISO 8601.
 
     :return: String com o timestamp atual
