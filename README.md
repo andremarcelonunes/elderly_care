@@ -27,39 +27,56 @@ Nasceu de uma ideia de um grupo de amigos que queriam ajudar pessoas que precisa
 - Python 
 - FastAPI
 - Postgres
-- 
+
 
 ## Pré-requisitos
 
-- Versões de software:
+1. [x] Versões de software:
   - Python 3.12.8
   - Postgres 17.2
+2. [x] Dependências:
 
-- Dependências:
-python = "^3.12"
-fastapi = "^0.115.6"
-starlette = ">=0.40.0,<0.42.0"
-uvicorn = "^0.34.0"
-sqlalchemy = "^2.0.36"
-psycopg2-binary = "^2.9.10"
-pymongo = ">=4.9,<4.10"
-motor = "^3.6.0"
-pydantic-settings = "^2.7.0"
-passlib = "^1.7.4"
-bcrypt = "==3.2.0"
-pydantic = {extras = ["email"], version = "^2.10.4"}
+* python = "^3.12"
+* fastapi = "^0.115.6"
+* starlette = ">=0.40.0,<0.42.0"
+* uvicorn = "^0.34.0"
+* sqlalchemy = "^2.0.36"
+* psycopg2-binary = "^2.9.10"
+* pymongo = ">=4.9,<4.10"
+* motor = "^3.6.0"
+* pydantic-settings = "^2.7.0"
+* passlib = "^1.7.4"
+* bcrypt = "==3.2.0"
+* pydantic = {extras = ["email"], version = "^2.10.4"}
 
 
 ## Instalação
 ```bash
 poetry install
-python create_tables.py   
+```
+Criar schema no banco de dados, exemplo: elderydb
+
+
+Criar o arquivo config.py dentro da pasta /backendeldery e configurar para o banco de dados postgresql
+
+```bash
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    DATABASE_URL: str = "postgresql://elderydb:teste123@localhost/elderly_care"
+    MONGO_URI: str = "mongodb://localhost:27017"
+    MONGO_DB: str = "elderly_care"
+
+settings = Settings()
 ```
 
 
+Executar o comando para criar as tabelas no banco de dados
+```bash
+python create_tables.py   
+```
 
-## Uso
-
+## Executar o Servidor Local
 
 ```bash
 poetry shell
@@ -67,6 +84,9 @@ poetry shell
 
 uvicorn main:app --reload   
 
-http://127.0.0.1:8000/docs
+```
 
+Acessar a documentação da API
+```bash
+http://127.0.0.1:8000/docs
 ```
