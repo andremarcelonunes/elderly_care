@@ -1,6 +1,9 @@
 from sqlalchemy import Column, Integer, Table, String, ForeignKey, Boolean, Text, Enum, Date, DateTime, Time,  func, UniqueConstraint
 from sqlalchemy.orm import relationship, backref
 from database import Base
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 
 
 class User(Base):
@@ -23,7 +26,7 @@ class User(Base):
     client_contacts = relationship("ClientContact", back_populates="contact")
     client = relationship("Client", uselist=False, back_populates="user")
     patient_progress = relationship("PatientProgress", back_populates="attendant")
-    tickets = relationship("Ticket", back_populates="attendant")
+    tickets = relationship("Ticket", back_populates="attendant")  # Adicionado
 
 
 class Function(Base):
@@ -247,7 +250,7 @@ class Ticket(Base):
     event = relationship("Event", back_populates="ticket")
 
     # Relacionamento com atendente
-    attendant = relationship("User", back_populates="tickets")
+    attendant = relationship("User", back_populates="tickets")  # Ajustado
 
 class Document(Base):
     __tablename__ = "documents"

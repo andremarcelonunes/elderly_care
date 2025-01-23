@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from fastapi import HTTPException
 from datetime import datetime
+from database import db_instance
 
 # Contexto de hash de senha
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -88,3 +89,9 @@ def current_timestamp() -> str:
     :return: String com o timestamp atual
     """
     return datetime.utcnow().isoformat()
+
+def get_db():
+    """
+    Dependency para obter a sessão do banco de dados.
+    """
+    yield from db_instance.get_db()
