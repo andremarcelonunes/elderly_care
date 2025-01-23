@@ -9,13 +9,13 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "users"
     __table_args__ = {"schema": "elderly_care"}
-    user_id = Column(Integer, primary_key=True, index=True)
-    user_name = Column(String(200), nullable=False)
-    user_email = Column(String(150), unique=True,  nullable=False)
-    user_phone = Column(String(15), unique=True,  nullable=False)
-    user_birthday = Column(Date, nullable=True)
-    user_role = Column(String(50), nullable=False)
-    user_password_hash = Column(String(128), nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    email = Column(String(150), unique=True,  nullable=True)
+    phone = Column(String(15), unique=True,  nullable=False)
+    role = Column(String(50), nullable=False)
+    active = Column(Boolean, default=True)
+    password_hash = Column(String(128), nullable=False)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by = Column(Integer, nullable=False)
@@ -65,7 +65,7 @@ class Team(Base):
 class Attendant(Base):
     __tablename__ = "attendants"
     __table_args__ = {"schema": "elderly_care"}
-    user_id = Column(Integer, ForeignKey("elderly_care.users.user_id"), index=True, primary_key=True)
+    user_id = Column(Integer, ForeignKey("elderly_care.users.id"), index=True, primary_key=True)
     function_id = Column(Integer, ForeignKey("elderly_care.functions.function_id"), index=True, nullable=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
@@ -91,13 +91,15 @@ AttendantTeam = Table(
 class Client(Base):
     __tablename__ = "clients"
     __table_args__ = {"schema": "elderly_care"}
-    user_id = Column(Integer, ForeignKey("elderly_care.users.user_id"), index=True, primary_key=True)
+    user_id = Column(Integer, ForeignKey("elderly_care.users.id"), index=True, primary_key=True)
     team_id = Column(Integer, ForeignKey("elderly_care.teams.team_id"), index=True, nullable=True)
-    client_address = Column(String, nullable=False)
-    client_neighborhood = Column(String, nullable=False)
-    client_city = Column(String, nullable=False)
-    client_state = Column(String, nullable=False)
-    client_code_address = Column(String(20), nullable=False)
+    cpf = Column(String(20), nullable=False, unique=True)
+    birthday = Column(Date, nullable=True)
+    address = Column(String, nullable=False)
+    neighborhood = Column(String, nullable=False)
+    city = Column(String, nullable=False)
+    state = Column(String, nullable=False)
+    code_address = Column(String(20), nullable=False)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by = Column(Integer, nullable=False)
@@ -117,7 +119,7 @@ class ClientContact(Base):
     __tablename__ = "contacts"
     __table_args__ = {"schema": "elderly_care"}
     user_client_id = Column(Integer, ForeignKey("elderly_care.clients.user_id"), index=True, primary_key=True)
-    user_contact_id = Column(Integer, ForeignKey("elderly_care.users.user_id"), index=True, nullable=False)
+    user_contact_id = Column(Integer, ForeignKey("elderly_care.users.id"), index=True, nullable=False)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by = Column(Integer, nullable=False)
@@ -129,7 +131,7 @@ class ClientContact(Base):
 class NotificationConfig(Base):
     __tablename__ = "notification_configs"
     __table_args__ = {"schema": "elderly_care"}
-    user_id = Column(Integer, ForeignKey("elderly_care.users.user_id"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("elderly_care.users.id"), primary_key=True)
     notify_level = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
@@ -216,7 +218,7 @@ class PatientProgress(Base):
     __table_args__ = {"schema": "elderly_care"}
     progress_id = Column(Integer, primary_key=True, index=True)
     record_id = Column(Integer, ForeignKey("elderly_care.records.record_id"), nullable=False)
-    attendant_id = Column(Integer, ForeignKey("elderly_care.users.user_id"), nullable=False)  # Atendente responsável
+    attendant_id = Column(Integer, ForeignKey("elderly_care.users.id"), nullable=False)  # Atendente responsável
     created_at = Column(DateTime, default=func.now())
     description = Column(Text, nullable=False)  # Descrição da evolução clínica
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
@@ -237,7 +239,7 @@ class Ticket(Base):
     status = Column(Enum("open", "in_progress", "pending", "closed", name="ticket_status_enum"), nullable=False)
     symptoms = Column(Text, nullable=True)
     additional_info = Column(Text, nullable=True)
-    attendant_id = Column(Integer, ForeignKey("elderly_care.users.user_id"), nullable=True)  # Atendente responsável
+    attendant_id = Column(Integer, ForeignKey("elderly_care.users.id"), nullable=True)  # Atendente responsável
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by = Column(Integer, nullable=False)
