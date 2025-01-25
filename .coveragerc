@@ -1,0 +1,9 @@
+[run]
+omit =
+    backendeldery/config.py
+    backendeldery/create_tables.py
+    backendeldery/database.py
+    backendeldery/database_nosql.py
+    backendeldery/setup_mongo.py
+    backendeldery/process_audit_logs.py
+

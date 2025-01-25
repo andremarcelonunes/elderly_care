@@ -1,15 +1,19 @@
-from .crud import base, users, crud_client, crud_contact, crud_attendant
-from .models import User, Client,ClientContact, Attendant
+from .crud.users import CRUDUser, CRUDClient, CRUDContact, CRUDAttendant, CRUDSpecializedUser
+from .models import User, Client, ClientContact, Attendant
 from .routers import users
+from .utils import hash_password, obj_to_dict
 
 __all__ = [
-    "users.py",
-    "crud_client",
-    "crud_contact",
-    "crud_attendant",
+    "hash_password",
+    "obj_to_dict",
+    "CRUDUser",
+    "CRUDClient",
+    "CRUDContact",
+    "CRUDAttendant",
+    "CRUDSpecializedUser",
     "User",
     "Client",
     "ClientContact",
     "Attendant",
-    "users.py",
-]
+    "users",
+    ]

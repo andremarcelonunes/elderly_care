@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import Type, TypeVar, Generic, Optional
 from fastapi import HTTPException
-from utils import obj_to_dict
+from backendeldery.utils import  obj_to_dict
 
 # Representa o tipo do modelo SQLAlchemy
 ModelType = TypeVar("ModelType")

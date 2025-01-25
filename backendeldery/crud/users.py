@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from utils import hash_password, obj_to_dict
+from backendeldery.utils import hash_password, obj_to_dict
+from backendeldery.models import User, Client, ClientContact, Attendant
+from backendeldery.schemas import UserCreate, SubscriberCreate, ContactCreate, AttendantCreate
 from .base import CRUDBase
-from models import User, Client, ClientContact, Attendant
-from schemas import UserCreate, ClientCreate, ContactCreate, AttendantCreate
 import logging
 
 logger = logging.getLogger("backendeldery")
@@ -26,16 +26,16 @@ class CRUDUser(CRUDBase[User, UserCreate]):
         user_data = {key: value for key, value in obj_in.items() if key in User.__table__.columns.keys()}
 
         # Hasheia a senha do usuário
-        user_data["user_password_hash"] = hash_password(obj_in.pop("user_password"))
+        user_data["password_hash"] = hash_password(obj_in.pop("password"))
         # Adiciona informações de auditoria
         user_data["created_by"] = created_by
         user_data["user_ip"] = user_ip
 
         # Verifica duplicidade de e-mail e telefone
-        if db.query(User).filter(User.user_email == obj_in["user_email"]).first():
+        if db.query(User).filter(User.email == obj_in["email"]).first():
             logger.info("email duplicado...")
             raise HTTPException(status_code=400, detail="Email already exists")
-        if db.query(User).filter(User.user_phone == obj_in["user_phone"]).first():
+        if db.query(User).filter(User.phone == obj_in["phone"]).first():
             logger.info("telefone  duplicado...")
             raise HTTPException(status_code=400, detail="Phone already exists")
 
@@ -51,28 +51,31 @@ class CRUDClient(CRUDBase):
     def __init__(self):
         super().__init__(Client)
 
-    def create(self, db: Session, user: User, obj_in: ClientCreate, created_by: int, user_ip: str):
+    def create(self, db: Session, user: User, obj_in: SubscriberCreate, created_by: int, user_ip: str):
         """
         Cria um cliente e registra informações de auditoria.
         """
         # Verifica se o usuário já é um cliente
-        existing_client = db.query(Client).filter(Client.user_id == user.user_id).first()
-        if existing_client:
+        if db.query(Client).filter(Client.user_id == user.id).first():
             raise HTTPException(status_code=400, detail="Client already exists")
 
-        # Converte obj_in para um dicionário e adiciona o user_id
-        client_data = obj_in.dict()
-        client_data["user_id"] = user.user_id
-        client_data["created_by"] = created_by  # Adiciona o campo `created_by`
+        # Verifica duplicidade do CPF
+        if db.query(Client).filter(Client.cpf == obj_in.cpf).first():  # Corrigido para acessar `obj_in.cpf`
+            logger.info("CPF duplicado...")
+            raise HTTPException(status_code=400, detail="CPF already exists")
+
+        # Converte obj_in para um dicionário e adiciona informações adicionais
+        client_data = obj_in.model_dump()   # Converte para dicionário
+        client_data["user_id"] = user.id
+        client_data["created_by"] = created_by
         client_data["user_ip"] = user_ip
 
         # Cria a instância do modelo e adiciona ao banco
         obj = self.model(**client_data)
         db.add(obj)
-        db.flush()  # Usa `flush` ao invés de `commit` para preparar a transação sem encerrar
+        db.flush()  # Usa `flush` para preparar a transação sem encerrar
         db.refresh(obj)
         return obj
-
 
 class CRUDContact(CRUDBase):
     def __init__(self):
@@ -106,15 +109,29 @@ class CRUDSpecializedUser:
         self.crud_contact = CRUDContact()
         self.crud_attendant = CRUDAttendant()
 
-    def create_client(self, db: Session, user_data: dict, created_by: int, user_ip: str):
+    def create_subscriber(self, db: Session, user_data: dict, created_by: int, user_ip: str):
         """
-        Cria um cliente e associa os dados do usuário em uma única transação.
+        Cria um assinante e associa os dados do usuário em uma única transação.
         """
         try:
             if not isinstance(user_data, dict):
                 raise ValueError("user_data deve ser um dicionário válido")
 
+            client_data = user_data.get("client_data")
+            if not client_data or not isinstance(client_data, dict):
+                raise HTTPException(status_code=400, detail="You must inform client data")
+
             with db.begin():  # Contexto transacional seguro
+                # Verifica duplicidade do CPF
+                existing_client = db.query(Client).filter(Client.cpf == client_data["cpf"]).first()
+                if existing_client:
+                    # Verifica divergência de email ou telefone
+                    existing_user = db.query(User).filter(User.id == existing_client.user_id).first()
+                    if existing_user.email != user_data["email"]:
+                        raise HTTPException(status_code=400, detail="This CPF has another email")
+                    if existing_user.phone != user_data["phone"]:
+                        raise HTTPException(status_code=400, detail="Thia CPF has another phone")
+
                 # Criação do usuário
                 user = self.crud_user.create(
                     db=db,
@@ -122,10 +139,6 @@ class CRUDSpecializedUser:
                     created_by=created_by,
                     user_ip=user_ip
                 )
-                # Extração de client_data
-                client_data = user_data.get("client_data")
-                if not client_data:
-                    raise HTTPException(status_code=400, detail="client_data é obrigatório para registro de cliente.")
 
                 # Criação do cliente
                 client = self.crud_client.create(
@@ -133,7 +146,7 @@ class CRUDSpecializedUser:
                     user=user,
                     created_by=created_by,
                     user_ip=user_ip,
-                    obj_in=ClientCreate(**client_data)
+                    obj_in=SubscriberCreate(**client_data)
                 )
             return {
                 "user": obj_to_dict(user),  # Converte User para dicionário
@@ -146,6 +159,7 @@ class CRUDSpecializedUser:
         except Exception as e:
             # Levanta erro genérico apenas para exceções não tratadas
             raise HTTPException(status_code=500, detail=f"Erro inesperado: {str(e)}")
+
 
     def create_contact(self, db: Session, user_data: UserCreate, client_ids: list[int]):
         """

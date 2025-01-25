@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from crud.users import crud_specialized_user
-from schemas import UserCreate, AttendantCreate
+from backendeldery.crud.users import crud_specialized_user
+from backendeldery.schemas import UserCreate, AttendantCreate
 from fastapi import HTTPException
 
 class UserService:
@@ -10,9 +10,9 @@ class UserService:
         Registra um cliente no sistema.
         """
         try:
-            return crud_specialized_user.create_client(
+            return crud_specialized_user.create_subscriber(
                 db=db,
-                user_data=user_data.dict(),
+                user_data=user_data.model_dump(),  # Use model_dump instead of dict
                 created_by=created_by,
                 user_ip=user_ip,
             )

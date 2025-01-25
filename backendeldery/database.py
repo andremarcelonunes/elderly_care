@@ -1,10 +1,9 @@
 import time
 from sqlalchemy import create_engine, text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from config import settings
+from sqlalchemy.orm import sessionmaker, declarative_base
+from backendeldery.config import settings
 import logging
-from config import settings
+
 
 logging.basicConfig()
 logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)

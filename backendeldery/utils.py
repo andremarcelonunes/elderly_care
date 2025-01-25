@@ -1,20 +1,16 @@
+import bcrypt
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
 from fastapi import HTTPException
 from datetime import datetime
-from database import db_instance
-
-# Contexto de hash de senha
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
+from backendeldery.database import db_instance
 
 def obj_to_dict(obj, exclude_fields=None):
     """
-    Converte um objeto SQLAlchemy em um dicionário.
+    Converts a SQLAlchemy object to a dictionary.
 
-    :param obj: Objeto SQLAlchemy
-    :param exclude_fields: Campos a serem excluídos do dicionário
-    :return: Dicionário contendo os dados do objeto
+    :param obj: SQLAlchemy object
+    :param exclude_fields: Fields to be excluded from the dictionary
+    :return: Dictionary containing the object's data
     """
     if not obj:
         return None
@@ -25,36 +21,33 @@ def obj_to_dict(obj, exclude_fields=None):
         if col.name not in exclude_fields
     }
 
-
 def hash_password(password: str) -> str:
     """
-    Gera o hash de uma senha.
+    Generates a hash for a password.
 
-    :param password: Senha em texto claro
-    :return: Hash da senha
+    :param password: Plain text password
+    :return: Password hash
     """
-    return pwd_context.hash(password)
-
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Verifica se a senha em texto claro corresponde ao hash.
+    Verifies if the plain text password matches the hash.
 
-    :param plain_password: Senha em texto claro
-    :param hashed_password: Hash da senha
-    :return: True se a senha for válida, False caso contrário
+    :param plain_password: Plain text password
+    :param hashed_password: Password hash
+    :return: True if the password is valid, False otherwise
     """
-    return pwd_context.verify(plain_password, hashed_password)
-
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def format_response(data=None, message="Success", status="ok"):
     """
-    Formata a resposta da API.
+    Formats the API response.
 
-    :param data: Dados a serem retornados
-    :param message: Mensagem descritiva
-    :param status: Status da resposta ('ok', 'error', etc.)
-    :return: Dicionário formatado
+    :param data: Data to be returned
+    :param message: Descriptive message
+    :param status: Response status ('ok', 'error', etc.)
+    :return: Formatted dictionary
     """
     return {
         "status": status,
@@ -62,16 +55,15 @@ def format_response(data=None, message="Success", status="ok"):
         "data": data
     }
 
-
 def validate_foreign_key(db: Session, model, field_name: str, value: int):
     """
-    Verifica se um valor de chave estrangeira existe no banco de dados.
+    Checks if a foreign key value exists in the database.
 
-    :param db: Sessão do banco de dados
-    :param model: Modelo SQLAlchemy relacionado
-    :param field_name: Nome do campo a ser validado
-    :param value: Valor da chave estrangeira
-    :return: None, lança uma exceção HTTP se não for válido
+    :param db: Database session
+    :param model: Related SQLAlchemy model
+    :param field_name: Name of the field to be validated
+    :param value: Foreign key value
+    :return: None, raises an HTTP exception if not valid
     """
     if not db.query(model).filter(getattr(model, field_name) == value).first():
         raise HTTPException(
@@ -79,19 +71,16 @@ def validate_foreign_key(db: Session, model, field_name: str, value: int):
             detail=f"Invalid foreign key: {field_name} with value {value} does not exist."
         )
 
-
 def current_timestamp() -> str:
     """
+    Returns the current timestamp in ISO 8601 format.
 
-
-    Retorna o timestamp atual no formato ISO 8601.
-
-    :return: String com o timestamp atual
+    :return: String with the current timestamp
     """
     return datetime.utcnow().isoformat()
 
 def get_db():
     """
-    Dependency para obter a sessão do banco de dados.
+    Dependency to get the database session.
     """
     yield from db_instance.get_db()
