@@ -24,7 +24,7 @@ jobs:
 
     - name: Set environment variables
       env:
-        DATABASE_URL: "mock_database_url"
+        DATABASE_URL: "sqlite:///./test.db"  # Use a valid SQLAlchemy URL
         MONGO_URI: "mock_mongo_uri"
         MONGO_DB: "mock_mongo_db"
       run: echo "Environment variables set"
@@ -38,7 +38,7 @@ jobs:
 
     - name: Run tests
       env:
-        DATABASE_URL: "mock_database_url"
+        DATABASE_URL: "sqlite:///./test.db"  # Use a valid SQLAlchemy URL
         MONGO_URI: "mock_mongo_uri"
         MONGO_DB: "mock_mongo_db"
       run: |
