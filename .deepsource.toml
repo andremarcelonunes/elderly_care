@@ -6,5 +6,5 @@ enabled = true
 
   [analyzers.meta]
   coverage = true  # Enable coverage analysis
-  test_pattern = "tests/"  # Directory where your tests are located
+  test_pattern = "backendeldery/tests/"  # Directory where your tests are located
   run_tests = "poetry run pytest --cov=backendeldery --cov-branch"  # Command to run tests and generate coverage
