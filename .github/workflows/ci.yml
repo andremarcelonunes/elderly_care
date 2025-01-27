@@ -44,9 +44,13 @@ jobs:
       run: |
         poetry run pytest --cov=backendeldery --cov-branch --cov-config=.coveragerc
 
+    - name: Install DeepSource CLI
+      run: |
+        curl -fsSL https://deepsource.io/cli | sh
+        echo "::add-path::$(pwd)/bin"
+
     - name: Upload coverage to DeepSource
       env:
         DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
       run: |
-        curl -fsSL https://deepsource.io/cli | sh
         deepsource report --analyzer python --key pytest-coverage --value-file .coverage
