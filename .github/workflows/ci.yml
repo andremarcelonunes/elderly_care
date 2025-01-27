@@ -56,8 +56,8 @@ jobs:
         which deepsource  # Check if deepsource is in the PATH
         deepsource --help  # Print the help message of deepsource
 
-    - name: Upload coverage to DeepSource
+    - name: Run DeepSource Analysis
       env:
         DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
       run: |
-        deepsource report --analyzer python --value-file .coverage
+        deepsource analyze
