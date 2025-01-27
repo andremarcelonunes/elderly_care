@@ -30,6 +30,12 @@ def user_data():
         }
     )
 
+@pytest.fixture(autouse=True)
+def mock_env_vars(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "mock_database_url")
+    monkeypatch.setenv("MONGO_URI", "mock_mongo_uri")
+    monkeypatch.setenv("MONGO_DB", "mock_mongo_db")
+
 def test_validate_user_email_exists(db_session, user_data):
     db_session.query.return_value.filter.return_value.first.return_value = User()
     with pytest.raises(HTTPException) as excinfo:
