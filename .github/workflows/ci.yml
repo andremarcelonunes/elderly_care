@@ -60,4 +60,4 @@ jobs:
       env:
         DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
       run: |
-        deepsource report --analyzer python --key pytest-coverage --value-file .coverage
+        deepsource report --analyzer coverage --key pytest-coverage --value-file .coverage
