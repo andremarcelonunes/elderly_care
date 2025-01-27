@@ -1,4 +1,4 @@
-name: CI
+ame: CI
 
 on:
   push:
@@ -54,7 +54,7 @@ jobs:
     - name: Verify DeepSource CLI installation
       run: |
         which deepsource  # Check if deepsource is in the PATH
-        deepsource --version  # Print the version of deepsource
+        deepsource --help  # Print the help message of deepsource
 
     - name: Upload coverage to DeepSource
       env:
