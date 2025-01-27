@@ -22,6 +22,13 @@ jobs:
       with:
         python-version: '3.12'
 
+    - name: Set environment variables
+      env:
+        DATABASE_URL: "mock_database_url"
+        MONGO_URI: "mock_mongo_uri"
+        MONGO_DB: "mock_mongo_db"
+      run: echo "Environment variables set"
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -30,6 +37,10 @@ jobs:
         poetry install
 
     - name: Run tests
+      env:
+        DATABASE_URL: "mock_database_url"
+        MONGO_URI: "mock_mongo_uri"
+        MONGO_DB: "mock_mongo_db"
       run: |
         poetry run pytest --cov=backendeldery --cov-branch --cov-config=.coveragerc
 
