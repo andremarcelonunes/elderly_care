@@ -21,27 +21,29 @@ class UserValidator:
 
     @staticmethod
     def validate_subscriber(db: Session, user_data: dict):
-        client_data = user_data.get("client_data")
-        if not client_data or not isinstance(client_data, dict):
-            raise HTTPException(status_code=400, detail="You must inform client data")
-
-        existing_client = db.query(Client).join(User).filter(
-            (Client.cpf == client_data["cpf"]) &
-            (User.email == user_data["email"]) &
-            (User.phone == user_data["phone"])
+        # Check if a user with the same email and phone already exists
+        existing_user = db.query(User).filter(
+            User.email == user_data["email"],
+            User.phone == user_data["phone"]
         ).first()
-        if existing_client:
-            raise HTTPException(status_code=422, detail="The subscriber already exists")
 
-            # Check if user already exists
-        existing_user = db.query(User).filter(User.email == user_data["email"], User.phone == user_data["phone"]).first()
         if existing_user:
-            # Check if the existing user is already a client with another CPF
             existing_client = db.query(Client).filter(Client.user_id == existing_user.id).first()
-            if existing_client and existing_client.cpf != client_data["cpf"]:
+            if existing_client and existing_client.cpf != user_data["client_data"]["cpf"]:
                 raise HTTPException(status_code=422, detail="This user is already a client with another CPF")
 
-        # Check if client with the same email or phone exists
+        if db.query(Client).join(User).filter(
+                (Client.cpf == user_data["client_data"]["cpf"]) &
+                (User.email == user_data["email"]) &
+                (User.phone == user_data["phone"])
+        ).first():
+            raise HTTPException(status_code=422, detail="The subscriber already exists")
+
+        existing_client = db.query(Client).filter(Client.cpf == user_data["client_data"]["cpf"]).first()
+        if existing_client:
+            raise HTTPException(status_code=422, detail="This cpf  already exists")
+        return False
+
         existing_client_with_email = db.query(Client).join(User).filter(User.email == user_data["email"]).first()
         existing_client_with_phone = db.query(Client).join(User).filter(User.phone == user_data["phone"]).first()
         if existing_client_with_email or existing_client_with_phone:
