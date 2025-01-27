@@ -48,6 +48,13 @@ jobs:
       run: |
         curl -fsSL https://deepsource.io/cli | sh
         echo "::add-path::$(pwd)/bin"
+        ls -l $(pwd)/bin  # List the contents of the bin directory
+        echo $PATH  # Print the PATH environment variable
+
+    - name: Verify DeepSource CLI installation
+      run: |
+        which deepsource  # Check if deepsource is in the PATH
+        deepsource --version  # Print the version of deepsource
 
     - name: Upload coverage to DeepSource
       env:
