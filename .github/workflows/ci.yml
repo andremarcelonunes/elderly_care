@@ -54,6 +54,7 @@ jobs:
     - name: Verify DeepSource CLI installation
       run: |
         which deepsource  # Check if deepsource is in the PATH
+        
         deepsource --help  # Print the help message of deepsource
 
     - name: Run DeepSource Analysis

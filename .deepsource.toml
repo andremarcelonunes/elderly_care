@@ -4,6 +4,7 @@ version = 1
 name = "python"
 enabled = true
 
+
   [analyzers.meta]
   coverage = true  # Enable coverage analysis
   test_pattern = "backendeldery/tests/"  # Directory where your tests are located
