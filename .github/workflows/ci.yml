@@ -47,7 +47,7 @@ jobs:
     - name: Install DeepSource CLI
       run: |
         curl -fsSL https://deepsource.io/cli | sh
-        echo "::add-path::$(pwd)/bin"
+        echo "$(pwd)/bin" >> $GITHUB_PATH  # Use environment files to add to PATH
         ls -l $(pwd)/bin  # List the contents of the bin directory
         echo $PATH  # Print the PATH environment variable
 
