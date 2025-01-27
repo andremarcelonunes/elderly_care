@@ -26,11 +26,8 @@ class UserValidator:
             User.email == user_data["email"],
             User.phone == user_data["phone"]
         ).first()
-
-        if existing_user:
-            existing_client = db.query(Client).filter(Client.user_id == existing_user.id).first()
-            if existing_client and existing_client.cpf != user_data["client_data"]["cpf"]:
-                raise HTTPException(status_code=422, detail="This user is already a client with another CPF")
+        if user_data["client_data"] is None:
+            raise HTTPException(status_code=400, detail="You must inform client data")
 
         if db.query(Client).join(User).filter(
                 (Client.cpf == user_data["client_data"]["cpf"]) &
@@ -38,6 +35,12 @@ class UserValidator:
                 (User.phone == user_data["phone"])
         ).first():
             raise HTTPException(status_code=422, detail="The subscriber already exists")
+
+
+        if existing_user:
+            existing_client = db.query(Client).filter(Client.user_id == existing_user.id).first()
+            if existing_client and existing_client.cpf != user_data["client_data"]["cpf"]:
+                raise HTTPException(status_code=422, detail="This user is already a client with another CPF")
 
         existing_client = db.query(Client).filter(Client.cpf == user_data["client_data"]["cpf"]).first()
         if existing_client:

@@ -60,6 +60,7 @@ def test_validate_subscriber_missing_client_data(db_session, user_data):
     assert excinfo.value.status_code == 400
     assert excinfo.value.detail == "You must inform client data"
 
+
 def test_validate_subscriber_exists(db_session, user_data):
     db_session.query(Client).join(User).filter(
         (Client.cpf == user_data.client_data.cpf) &  # Use dot notation
