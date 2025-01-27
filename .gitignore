@@ -1,1 +1,4 @@
 /backendeldery/config.py
+/backendeldery/htmlcov/
+/.coverage
+/coverage.xml

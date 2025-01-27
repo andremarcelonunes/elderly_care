@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from backendeldery.crud.users import crud_specialized_user
 from backendeldery.schemas import UserCreate, AttendantCreate
 from fastapi import HTTPException
+from backendeldery.validators.user_validator import UserValidator
 
 class UserService:
     @staticmethod
@@ -10,6 +11,7 @@ class UserService:
         Registra um cliente no sistema.
         """
         try:
+            UserValidator.validate_subscriber(db, user_data.model_dump())
             return crud_specialized_user.create_subscriber(
                 db=db,
                 user_data=user_data.model_dump(),  # Use model_dump instead of dict
@@ -17,40 +19,7 @@ class UserService:
                 user_ip=user_ip,
             )
         except HTTPException as e:
-            # Repassa a HTTPException diretamente
             raise e
         except Exception as e:
-            # Levanta erro genérico apenas para exceções não tratadas
             raise HTTPException(status_code=500, detail=f"Erro inesperado: {str(e)}")
 
-    @staticmethod
-    async def register_contact(db: Session, user_data: UserCreate):
-        """
-        Registra um contato no sistema.
-        """
-        try:
-            return crud_specialized_user.create_contact(
-                db=db,
-                user_data=user_data.dict(),
-                client_ids=user_data.client_ids,
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="Erro ao registrar contato.")
-
-    @staticmethod
-    async def register_attendant(
-        db: Session, user_data: UserCreate, attendant_data: AttendantCreate, created_by: int, user_ip: str
-    ):
-        """
-        Registra um atendente no sistema.
-        """
-        try:
-            return crud_specialized_user.create_attendant(
-                db=db,
-                user_data=user_data.dict(),
-                attendant_data=attendant_data.dict(),
-                created_by=created_by,
-                user_ip=user_ip,
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="Erro ao registrar atendente.")
