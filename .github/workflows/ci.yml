@@ -38,10 +38,10 @@ jobs:
         poetry install
 
     - name: Run DeepSource analysis
-        uses: deepsource/deepsource-run@v2
-        with:
-          analyzer: python
-            config: .deepsource.toml
+      uses: deepsource/deepsource-run@v2
+      with:
+        analyzer: python
+        config: .deepsource.toml
 
     - name: Run tests
       env:
