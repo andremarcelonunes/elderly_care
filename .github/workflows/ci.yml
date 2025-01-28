@@ -57,6 +57,9 @@ jobs:
     - name: Upload coverage to DeepSource
       env:
         DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
+        DATABASE_URL: "sqlite:///./test.db"  # Use a valid SQLAlchemy URL
+        MONGO_URI: "mock_mongo_uri"
+        MONGO_DB: "mock_mongo_db"
       run: |
         poetry run pytest --cov=backendeldery --cov-branch --cov-config=.coveragerc 
         ls -la
