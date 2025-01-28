@@ -22,13 +22,12 @@ jobs:
       with:
         python-version: '3.12'
 
-    - name: Set environment variables
+    - name: Set environment variables and Install Dependecies
       env:
         DATABASE_URL: "sqlite:///./test.db"  # Use a valid SQLAlchemy URL
         MONGO_URI: "mock_mongo_uri"
         MONGO_DB: "mock_mongo_db"
 
-    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install poetry
