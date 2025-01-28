@@ -6,5 +6,3 @@ enabled = true
 
 [analyzers.meta]
 coverage = true  # Enable test coverage analysis
-test_pattern = "backendeldery/tests/"  # Path to your test directory
-run_tests = "pytest --cov=src --cov-branch"  # Command to generate coverage
