@@ -61,6 +61,6 @@ jobs:
         MONGO_URI: "mock_mongo_uri"
         MONGO_DB: "mock_mongo_db"
       run: |
-        poetry run pytest --cov=backendeldery --cov-branch --cov-config=.coveragerc 
+        poetry run pytest --cov=./ --cov-report xml --cov-config=.coveragerc 
         ls -la
-        deepsource report --analyzer python --key coverage --value-file .coveragerc
+        deepsource report --analyzer test-coverage --key python --value-file ./coverage.xml
