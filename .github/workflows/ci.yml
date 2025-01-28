@@ -42,8 +42,7 @@ jobs:
         MONGO_URI: "mock_mongo_uri"
         MONGO_DB: "mock_mongo_db"
       run: |
-        poetry run pytest --cov=backendeldery --cov-branch --cov-config=.coveragerc --json-report -o report.json
-
+        poetry run pytest --cov=backendeldery --cov-branch --cov-config=.coveragerc --json-report-file=report.json
     - name: Install DeepSource CLI
       run: |
         curl -fsSL https://deepsource.io/cli | sh
