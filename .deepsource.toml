@@ -1,7 +1,6 @@
 version = 1
 
 test_patterns = [
-    "GaborNet/tests/**",
     "test_*.py"
 ]
 
@@ -23,10 +22,4 @@ enabled = true
 name = "test-coverage"
 enabled = true
 
-[[transformers]]
-name = "black"
-enabled = true
 
-[[transformers]]
-name = "isort"
-enabled = true
