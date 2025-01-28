@@ -4,11 +4,6 @@ version = 1
   name = "python"
   enabled = true
 
-[[analyzers]]
-  name = "test-coverage"
-  enabled = true
-
-# Optional: Specify the key used for reporting coverage data
-  [analyzers.meta]
-    key = "pytest"  # Or the key used in your 'deepsource report' command
-
+test_patterns = [
+  "pytest"  # Run pytest for testing
+]
