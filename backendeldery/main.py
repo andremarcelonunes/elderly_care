@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from routers.users import router as users_router
+from backendeldery.routers.users import router as users_router
 
 app = FastAPI()
 

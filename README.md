@@ -15,9 +15,9 @@ Projeto que visa criar uma plataforma para conectar pessoas que precisam de cuid
 Nasceu de uma ideia de um grupo de amigos que queriam ajudar pessoas que precisam de cuidados e pessoas que podem oferecer cuidados. A ideia é criar uma plataforma que conecte essas pessoas.
 
 # Funcionalidades principais:
-- Cadastrar pessoas que precisam de cuidados
-- Cadastrar pessoas que podem oferecer cuidados
-- Conectar pessoas que precisam de cuidados com pessoas que podem oferecer cuidados
+- Cadastrar pessoas quuee precisam de cuidados
+- Cadastrar pessoas quee podem oferecer cuidados
+- Conectar pessoas quue precisam de cuidados com pessoas que podem oferecer cuidados
 - Avaliar pessoas que oferecem cuidados
 - Manter um histórico de cuidados
 - Pedidos de ajuda

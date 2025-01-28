@@ -1,7 +1,6 @@
-from sqlalchemy import Column, Integer, Table, String, ForeignKey, Boolean, Text, Enum, Date, DateTime, Time,  func, UniqueConstraint
-from sqlalchemy.orm import relationship, backref
-from database import Base
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, Table, String, ForeignKey, Boolean, Text, Enum, Date, DateTime, Time,  func
+from sqlalchemy.orm import relationship,  declarative_base
+
 
 Base = declarative_base()
 
@@ -14,7 +13,7 @@ class User(Base):
     email = Column(String(150), unique=True,  nullable=True)
     phone = Column(String(15), unique=True,  nullable=False)
     role = Column(String(50), nullable=False)
-    active = Column(Boolean, default=True)
+    active = Column(Boolean, default=False)
     password_hash = Column(String(128), nullable=False)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
@@ -95,11 +94,11 @@ class Client(Base):
     team_id = Column(Integer, ForeignKey("elderly_care.teams.team_id"), index=True, nullable=True)
     cpf = Column(String(20), nullable=False, unique=True)
     birthday = Column(Date, nullable=True)
-    address = Column(String, nullable=False)
-    neighborhood = Column(String, nullable=False)
-    city = Column(String, nullable=False)
-    state = Column(String, nullable=False)
-    code_address = Column(String(20), nullable=False)
+    address = Column(String, nullable=True)
+    neighborhood = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    state = Column(String, nullable=True)
+    code_address = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by = Column(Integer, nullable=False)

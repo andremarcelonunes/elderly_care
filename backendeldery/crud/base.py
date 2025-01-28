@@ -1,13 +1,12 @@
 from sqlalchemy.orm import Session
 from typing import Type, TypeVar, Generic, Optional
 from fastapi import HTTPException
-from utils import obj_to_dict
+from backendeldery.utils import obj_to_dict
 
-# Representa o tipo do modelo SQLAlchemy
+
 ModelType = TypeVar("ModelType")
-# Representa o tipo do schema Pydantic
-CreateSchemaType = TypeVar("CreateSchemaType")
 
+CreateSchemaType = TypeVar("CreateSchemaType")
 
 class CRUDBase(Generic[ModelType, CreateSchemaType]):
     def __init__(self, model: Type[ModelType]):
@@ -30,7 +29,6 @@ class CRUDBase(Generic[ModelType, CreateSchemaType]):
         if not db_obj:
             raise HTTPException(status_code=404, detail=f"{self.model.__name__} with id {id} not found.")
 
-        # Atualiza os campos dinamicamente
         for field, value in obj_in.dict(exclude_unset=True).items():
             setattr(db_obj, field, value)
 
