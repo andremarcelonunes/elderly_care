@@ -2,10 +2,10 @@ version = 1
 
 [[analyzers]]
   name = "python"
-  enabled = true
+
 
   [analyzers.meta]
-  runtime_version = "3.x.x"
-  coverage = true
-  test_pattern = "backendeldery/tests/"
-  run_tests = "poetry run pytest --cov=backendeldery --cov-branch"
+    runtime_version = "3.x.x"
+    coverage = true
+    test_pattern = "backendeldery/tests/"
+    run_tests = "poetry run pytest --cov=backendeldery --cov-branch"
