@@ -44,17 +44,6 @@ jobs:
         MONGO_DB: "mock_mongo_db"
       run: |
         poetry run pytest --cov=backendeldery --cov-branch --cov-config=.coveragerc --json-report-file=report.json
-    - name: Install DeepSource CLI
-      run: |
-        curl -fsSL https://deepsource.io/cli | sh
-        echo "$(pwd)/bin" >> $GITHUB_PATH  # Use environment files to add to PATH
-        ls -l $(pwd)/bin  # List the contents of the bin directory
-        echo $PATH  # Print the PATH environment variable
-
-    - name: Verify DeepSource CLI installation
-      run: |
-        which deepsource  # Check if deepsource is in the PATH
-        deepsource version  # Print the help message of deepsource
 
     - name: Upload coverage to DeepSource
       env:
