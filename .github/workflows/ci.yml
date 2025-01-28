@@ -33,7 +33,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install poetry
-        poetry add --dev pytest pytest-cov pytest-json-report
+        poetry add --dev pytest pytest-cov pytest-json-report deepsource
         poetry lock
         poetry install
 
