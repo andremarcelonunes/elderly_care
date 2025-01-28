@@ -16,7 +16,7 @@ Nasceu de uma ideia de um grupo de amigos que queriam ajudar pessoas que precisa
 
 # Funcionalidades principais:
 - Cadastrar pessoas quee precisam de cuidados
-- Cadastrar pessoas que podem oferecer cuidados
+- Cadastrar pessoas quee podem oferecer cuidados
 - Conectar pessoas que precisam de cuidados com pessoas que podem oferecer cuidados
 - Avaliar pessoas que oferecem cuidados
 - Manter um histórico de cuidados
