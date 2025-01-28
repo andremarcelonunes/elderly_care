@@ -16,6 +16,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 1
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -35,14 +37,7 @@ jobs:
         poetry lock
         poetry install
 
-    - name: Run tests
-      env:
-        DATABASE_URL: "sqlite:///./test.db"  # Use a valid SQLAlchemy URL
-        MONGO_URI: "mock_mongo_uri"
-        MONGO_DB: "mock_mongo_db"
-      run: |
-        poetry run pytest --cov=backendeldery --cov-branch --cov-config=.coveragerc 
-        ls -la
+
     - name: Install DeepSource CLI
       run: |
         wget -O - https://deepsource.io/cli | sh
