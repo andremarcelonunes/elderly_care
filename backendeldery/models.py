@@ -1,6 +1,5 @@
-from sqlalchemy import Column, Integer, Table, String, ForeignKey, Boolean, Text, Enum, Date, DateTime, Time,  func, UniqueConstraint
-from sqlalchemy.orm import relationship, backref, declarative_base
-from backendeldery.database import  Base
+from sqlalchemy import Column, Integer, Table, String, ForeignKey, Boolean, Text, Enum, Date, DateTime, Time,  func
+from sqlalchemy.orm import relationship,  declarative_base
 
 
 Base = declarative_base()

@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, Body, HTTPException, Request, Header
 from sqlalchemy.orm import Session
-from backendeldery.schemas import UserCreate, SubscriberCreate, ContactCreate, AttendantCreate
+from backendeldery.schemas import UserCreate
 from backendeldery.services.users import UserService
-from backendeldery.crud.users import crud_specialized_user
 from fastapi.logger import logger
 from backendeldery.utils import get_db
 
@@ -48,9 +47,7 @@ async def register_subscriber(
             user_ip=client_ip,
         )
     except HTTPException as e:
-        logger.error(f"Erro HTTP: {e.detail}")
         raise e
     except Exception as e:
-        logger.error(f"Erro inesperado: {e}")
         raise HTTPException(status_code=500, detail="Erro ao registrar cliente.")
 
