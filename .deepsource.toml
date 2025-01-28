@@ -1,11 +1,10 @@
 version = 1
 
 [[analyzers]]
-  name = "python"
+name = "python"
+enabled = true
 
-
-  [analyzers.meta]
-    runtime_version = "3.x.x"
-    coverage = true
-    test_pattern = "backendeldery/tests/"
-    run_tests = "poetry run pytest --cov=backendeldery --cov-branch"
+[analyzers.meta]
+coverage = true  # Enable test coverage analysis
+test_pattern = "backendeldery/tests/"  # Path to your test directory
+run_tests = "pytest --cov=src --cov-branch"  # Command to generate coverage
