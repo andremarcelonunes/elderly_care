@@ -63,4 +63,5 @@ jobs:
       run: |
         poetry run pytest --cov=./ --cov-report xml --cov-config=.coveragerc 
         ls -la
+        
         deepsource report --analyzer test-coverage --key python --value-file ./coverage.xml
