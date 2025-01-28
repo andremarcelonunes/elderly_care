@@ -3,7 +3,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from backendeldery.models import User, Client
-from backendeldery.schemas import UserCreate, SubscriberCreate
+from backendeldery.schemas import UserCreate
 from backendeldery.validators.user_validator import UserValidator
 
 

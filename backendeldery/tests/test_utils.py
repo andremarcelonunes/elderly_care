@@ -1,5 +1,4 @@
 # test_utils.py
-import pytest
 from backendeldery.utils import hash_password, obj_to_dict
 from backendeldery.models import User
 
