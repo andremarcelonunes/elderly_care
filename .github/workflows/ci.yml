@@ -58,4 +58,6 @@ jobs:
       env:
         DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
       run: |
+        poetry run pytest --cov=backendeldery --cov-branch --cov-config=.coveragerc 
+        ls -la
         deepsource report --analyzer python --key coverage --value-file report.json
