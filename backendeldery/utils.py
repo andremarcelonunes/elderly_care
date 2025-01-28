@@ -4,10 +4,10 @@ from fastapi import HTTPException
 from datetime import datetime
 from backendeldery.database import db_instance
 
+
 def obj_to_dict(obj, exclude_fields=None):
     """
     Converts a SQLAlchemy object to a dictionary.
-
     :param obj: SQLAlchemy object
     :param exclude_fields: Fields to be excluded from the dictionary
     :return: Dictionary containing the object's data
@@ -21,6 +21,7 @@ def obj_to_dict(obj, exclude_fields=None):
         if col.name not in exclude_fields
     }
 
+
 def hash_password(password: str) -> str:
     """
     Generates a hash for a password.
@@ -29,6 +30,7 @@ def hash_password(password: str) -> str:
     :return: Password hash
     """
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
@@ -39,6 +41,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     :return: True if the password is valid, False otherwise
     """
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
 
 def format_response(data=None, message="Success", status="ok"):
     """
@@ -55,6 +58,7 @@ def format_response(data=None, message="Success", status="ok"):
         "data": data
     }
 
+
 def validate_foreign_key(db: Session, model, field_name: str, value: int):
     """
     Checks if a foreign key value exists in the database.
@@ -70,6 +74,7 @@ def validate_foreign_key(db: Session, model, field_name: str, value: int):
             status_code=400,
             detail=f"Invalid foreign key: {field_name} with value {value} does not exist."
         )
+
 
 def current_timestamp() -> str:
     """

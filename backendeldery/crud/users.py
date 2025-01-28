@@ -2,9 +2,10 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from backendeldery.utils import hash_password, obj_to_dict
 from backendeldery.models import User, Client
-from backendeldery.schemas import UserCreate, SubscriberCreate, ContactCreate, AttendantCreate
+from backendeldery.schemas import UserCreate, SubscriberCreate
 from .base import CRUDBase
 import logging
+
 
 logger = logging.getLogger("backendeldery")
 logger.setLevel(logging.INFO)
@@ -50,6 +51,7 @@ class CRUDClient(CRUDBase):
         db.refresh(obj)
         return obj
 
+
 class CRUDSpecializedUser:
     def __init__(self):
         self.crud_user = CRUDUser()
@@ -91,4 +93,3 @@ class CRUDSpecializedUser:
 crud_specialized_user = CRUDSpecializedUser()
 crud_user = CRUDUser()
 crud_client = CRUDClient()
-

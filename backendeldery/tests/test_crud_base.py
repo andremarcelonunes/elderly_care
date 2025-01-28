@@ -5,11 +5,13 @@ from sqlalchemy.orm import Session
 from backendeldery.models import User
 from backendeldery.crud.base import CRUDBase
 from backendeldery.schemas import UserCreate
-from backendeldery.utils import obj_to_dict
+from unittest.mock import patch
+
 
 @pytest.fixture
 def db_session(mocker):
     return mocker.Mock(spec=Session)
+
 
 @pytest.fixture
 def user_data():
@@ -31,8 +33,7 @@ def user_data():
         }
     )
 
-from unittest.mock import patch
-from pydantic import BaseModel
+
 
 class MockUserCreate(BaseModel):
     name: str
@@ -42,6 +43,7 @@ class MockUserCreate(BaseModel):
     active: bool
     password_hash: str
 
+
 class MockUserUpdate(BaseModel):
     name: str
     email: str
@@ -49,6 +51,8 @@ class MockUserUpdate(BaseModel):
     role: str
     active: bool
     password_hash: str
+
+
 def test_get_user(db_session):
     crud_base = CRUDBase(User)
     mocked_user = User(id=1)
@@ -82,11 +86,10 @@ def test_get_user(db_session):
             "updated_by": None,
             "user_ip": None,
         }
-from unittest.mock import patch
+
 
 def test_create_user_with_client_data(db_session, user_data):
     crud_base = CRUDBase(User)
-
     # Mock database session methods
     db_session.add.return_value = None
     db_session.commit.return_value = None
@@ -125,6 +128,8 @@ def test_create_user_with_client_data(db_session, user_data):
     }):
         result = crud_base.create(db_session, mock_user_data)
         assert result["email"] == user_data.email
+
+
 def test_update_user(db_session, user_data):
     crud_base = CRUDBase(User)
     db_session.query.return_value.filter.return_value.first.return_value = User(id=1)
@@ -135,6 +140,7 @@ def test_update_user(db_session, user_data):
     mock_user_update = MockUserUpdate(**user_data_dict)
     result = crud_base.update(db_session, 1, mock_user_update)
     assert result["email"] == user_data.email
+
 
 def test_delete_user(db_session):
     crud_base = CRUDBase(User)

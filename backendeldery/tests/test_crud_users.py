@@ -1,13 +1,14 @@
 # test_crud_users.py
 import pytest
 from sqlalchemy.orm import Session
-from backendeldery.models import User
 from backendeldery.crud.users import CRUDUser
 from backendeldery.schemas import UserCreate
+
 
 @pytest.fixture
 def db_session(mocker):
     return mocker.Mock(spec=Session)
+
 
 @pytest.fixture
 def user_data():
@@ -28,6 +29,7 @@ def user_data():
             "state": "CA"
         }
     )
+
 
 def test_create_user(db_session, user_data):
     crud_user = CRUDUser()

@@ -1,8 +1,9 @@
 from sqlalchemy.orm import Session
 from backendeldery.crud.users import crud_specialized_user
-from backendeldery.schemas import UserCreate, AttendantCreate
-from fastapi import HTTPException
+from backendeldery.schemas import UserCreate
 from backendeldery.validators.user_validator import UserValidator
+from fastapi import HTTPException
+
 
 class UserService:
     @staticmethod
@@ -22,4 +23,3 @@ class UserService:
             raise e
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Erro inesperado: {str(e)}")
-

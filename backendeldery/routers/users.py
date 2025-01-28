@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends, Body, HTTPException, Request, Header
 from sqlalchemy.orm import Session
 from backendeldery.schemas import UserCreate
 from backendeldery.services.users import UserService
-from fastapi.logger import logger
 from backendeldery.utils import get_db
 
+
 router = APIRouter()
+
 
 @router.post("/users/register/subscriber/")
 async def register_subscriber(
@@ -49,5 +50,4 @@ async def register_subscriber(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Erro ao registrar cliente.")
-
+        raise HTTPException(status_code=500, detail=f"Erro registrar subscriber: {str(e)}")

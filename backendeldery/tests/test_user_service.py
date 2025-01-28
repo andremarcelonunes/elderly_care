@@ -7,9 +7,11 @@ from backendeldery.services.users import UserService
 from backendeldery.validators.user_validator import UserValidator
 from backendeldery.crud.users import crud_specialized_user
 
+
 @pytest.fixture
 def db_session(mocker):
     return mocker.Mock(spec=Session)
+
 
 @pytest.fixture
 def user_data():
@@ -31,6 +33,7 @@ def user_data():
         }
     )
 
+
 @pytest.mark.asyncio
 async def test_register_client_success(db_session, mocker, user_data):
     mocker.patch.object(UserValidator, 'validate_subscriber', return_value=None)
@@ -38,6 +41,7 @@ async def test_register_client_success(db_session, mocker, user_data):
 
     result = await UserService.register_client(db_session, user_data, created_by=1, user_ip="127.0.0.1")
     assert result == {"user": {}, "client": {}}
+
 
 @pytest.mark.asyncio
 async def test_register_client_validation_error(db_session, mocker, user_data):

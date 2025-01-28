@@ -3,12 +3,14 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from backendeldery.models import User, Client
-from backendeldery.schemas import UserCreate, SubscriberCreate
+from backendeldery.schemas import UserCreate
 from backendeldery.crud.users import CRUDSpecializedUser
+
 
 @pytest.fixture
 def db_session(mocker):
     return mocker.Mock(spec=Session)
+
 
 @pytest.fixture
 def user_data():
@@ -29,6 +31,7 @@ def user_data():
             "state": "NY"
         }
     )
+
 
 def test_create_subscriber_success(db_session, mocker, user_data):
     # Mock User and Client objects with proper attributes
@@ -105,6 +108,7 @@ def test_create_subscriber_success(db_session, mocker, user_data):
         "updated_by": None,
         "user_ip": "127.0.0.1"
     }, f"Client mismatch: {result['client']}"
+
 
 def test_create_subscriber_error(db_session, mocker, user_data):
     mocker.patch('backendeldery.crud.users.CRUDUser.create', side_effect=Exception("Unexpected error"))

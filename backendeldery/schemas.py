@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 from typing import Optional, Literal, List
 from datetime import date
 
+
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
@@ -28,6 +29,7 @@ class UserCreate(BaseModel):
             raise ValueError("attendant_data is required when role is 'attendant'.")
         return values
 
+
 class SubscriberCreate(BaseModel):
     cpf: str
     address: Optional[str] = None
@@ -37,13 +39,15 @@ class SubscriberCreate(BaseModel):
     code_address: Optional[str] = None
     birthday: date
 
+
 class ContactCreate(BaseModel):
     user_client_id: int
     user_contact_id: int
+
 
 class AttendantCreate(BaseModel):
     function_id: Optional[int] = None
     team_id: Optional[int] = None
 
-# Rebuild para forward references
+
 UserCreate.model_rebuild()

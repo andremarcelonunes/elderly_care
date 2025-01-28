@@ -6,9 +6,11 @@ from backendeldery.models import User, Client
 from backendeldery.schemas import UserCreate, SubscriberCreate
 from backendeldery.validators.user_validator import UserValidator
 
+
 @pytest.fixture
 def db_session(mocker):
     return mocker.Mock(spec=Session)
+
 
 @pytest.fixture
 def user_data():
@@ -30,11 +32,13 @@ def user_data():
         }
     )
 
+
 @pytest.fixture(autouse=True)
 def mock_env_vars(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "mock_database_url")
     monkeypatch.setenv("MONGO_URI", "mock_mongo_uri")
     monkeypatch.setenv("MONGO_DB", "mock_mongo_db")
+
 
 def test_validate_user_email_exists(db_session, user_data):
     db_session.query.return_value.filter.return_value.first.return_value = User()
@@ -42,6 +46,7 @@ def test_validate_user_email_exists(db_session, user_data):
         UserValidator.validate_user(db_session, user_data)
     assert excinfo.value.status_code == 422
     assert excinfo.value.detail == "Email already exists"
+
 
 def test_validate_user_phone_exists(db_session, user_data):
     db_session.query.return_value.filter.return_value.first.side_effect = [None, User()]  # Email None, Phone exists
@@ -58,6 +63,7 @@ def test_validate_client_exists(db_session, user_data):
         UserValidator.validate_client(db_session, user, user_data.client_data)
     assert excinfo.value.status_code == 422
     assert excinfo.value.detail == "Client already exists"
+
 
 def test_validate_subscriber_missing_client_data(db_session, user_data):
     user_data.client_data = None
@@ -78,6 +84,7 @@ def test_validate_subscriber_exists(db_session, user_data):
     assert excinfo.value.status_code == 422
     assert excinfo.value.detail == "The subscriber already exists"
 
+
 def test_validate_subscriber_user_exists_with_different_cpf(db_session, user_data):
     user_data.client_data.cpf = "123.456.789-40"
     db_session.query(Client).join(User).filter(
@@ -89,6 +96,7 @@ def test_validate_subscriber_user_exists_with_different_cpf(db_session, user_dat
     with pytest.raises(HTTPException) as excinfo:
         UserValidator.validate_subscriber(db_session, user_data.model_dump())
     assert excinfo.value.status_code == 422
+
 
 def test_validate_subscriber_client_with_email_exists(db_session, user_data):
     db_session.query(Client).join(User).filter(User.phone == user_data.email).first.return_value = Client()
