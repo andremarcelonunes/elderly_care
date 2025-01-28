@@ -12,6 +12,7 @@ exclude_patterns = [
     "sanity_check/**",
 ]
 
+
 [[analyzers]]
 name = "python"
 enabled = true
