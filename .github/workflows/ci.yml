@@ -63,4 +63,4 @@ jobs:
       run: |
         poetry run pytest --cov=backendeldery --cov-branch --cov-config=.coveragerc 
         ls -la
-        deepsource report --analyzer python --key coverage --value-file report.json
+        deepsource report --analyzer python --key coverage --value-file .coveragerc
