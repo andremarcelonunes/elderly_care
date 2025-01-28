@@ -42,7 +42,7 @@ jobs:
         MONGO_URI: "mock_mongo_uri"
         MONGO_DB: "mock_mongo_db"
       run: |
-        poetry run pytest --cov=backendeldery --cov-branch --cov-config=.coveragerc
+        poetry run pytest --cov=backendeldery --cov-branch --cov-config=.coveragerc --junitxml=pytest-report.xml
 
     - name: Install DeepSource CLI
       run: |
@@ -60,4 +60,4 @@ jobs:
       env:
         DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
       run: |
-        deepsource report --analyzer python --value-file .coverage
+        deepsource report --junit-file pytest-report.xml
