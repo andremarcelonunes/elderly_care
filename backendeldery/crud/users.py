@@ -6,13 +6,13 @@ from backendeldery.schemas import UserCreate, SubscriberCreate
 from .base import CRUDBase
 import logging
 
-
 logger = logging.getLogger("backendeldery")
 logger.setLevel(logging.INFO)
 if not logger.hasHandlers():
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     logger.addHandler(console_handler)
+
 
 class CRUDUser(CRUDBase[User, UserCreate]):
     def __init__(self):
@@ -33,6 +33,7 @@ class CRUDUser(CRUDBase[User, UserCreate]):
         db.refresh(db_obj)
         return db_obj
 
+
 class CRUDClient(CRUDBase):
     def __init__(self):
         super().__init__(Client)
@@ -41,7 +42,7 @@ class CRUDClient(CRUDBase):
         """
         Cria um cliente e registra informações de auditoria.
         """
-        client_data = obj_in.model_dump()   # Converte para dicionário
+        client_data = obj_in.model_dump()
         client_data["user_id"] = user.id
         client_data["created_by"] = created_by
         client_data["user_ip"] = user_ip
@@ -88,6 +89,33 @@ class CRUDSpecializedUser:
             raise HTTPException(status_code=500, detail=f"Erro inesperado: {str(e)}")
         finally:
             db.close()  # Ensure the session is closed
+
+    def search_subscriber(self, db: Session, criteria: dict):
+        """
+        Busca um assinante com base nos critérios fornecidos.
+        """
+        try:
+            field, value = next(iter(criteria.items()))
+
+            if field == "cpf":
+                # Query Client table via CPF
+                return (
+                    db.query(self.crud_user.model)
+                    .join(self.crud_client.model)
+                    .filter(self.crud_client.model.cpf == value)
+                    .first()
+                )
+            elif field in ["email", "phone"]:
+                # Query User table directly
+                return (
+                    db.query(self.crud_user.model)
+                    .filter(getattr(self.crud_user.model, field) == value)
+                    .first()
+                )
+            else:
+                return None
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error to search subscriber: {str(e)}")
 
 
 crud_specialized_user = CRUDSpecializedUser()
