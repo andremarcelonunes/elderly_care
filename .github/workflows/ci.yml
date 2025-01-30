@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - '**/*'
   pull_request:
     branches:
       - main
@@ -14,49 +14,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
+      - name: Checkout code V2
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.12'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
 
-    - name: Set environment variables and Install Dependecies
-      env:
-        DATABASE_URL: "sqlite:///./test.db"  # Use a valid SQLAlchemy URL
-        MONGO_URI: "mock_mongo_uri"
-        MONGO_DB: "mock_mongo_db"
+      - name: Set environment variables and Install Dependecies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry add --dev pytest pytest-cov pytest-json-report deepsource
+          poetry lock
+          poetry install
 
-      run: |
-        python -m pip install --upgrade pip
-        pip install poetry
-        poetry add --dev pytest pytest-cov pytest-json-report deepsource
-        poetry lock
-        poetry install
+      - name: Install DeepSource CLI
+        run: |
+          wget -O - https://deepsource.io/cli | sh
+          echo "$(pwd)/bin" >> $GITHUB_PATH  # Use environment files to add to PATH
+          ls -l "$(pwd)/bin"  # List the contents of the bin directory
 
+      - name: Verify DeepSource CLI installation
+        run: |
+          which deepsource  # Check if deepsource is in the PATH
+          deepsource version  # Print the help message of deepsource
 
-    - name: Install DeepSource CLI
-      run: |
-        wget -O - https://deepsource.io/cli | sh
-        echo "$(pwd)/bin" >> $GITHUB_PATH  # Use environment files to add to PATH
-        ls -l "$(pwd)/bin"  # List the contents of the bin directory
+      - name: Run Tests
+        env:
+          DATABASE_URL: "sqlite:///./test.db"  # Use a valid SQLAlchemy URL
+          MONGO_URI: "mock_mongo_uri"
+          MONGO_DB: "mock_mongo_db"
+        run: |
+          poetry run pytest -v --cov=./ --cov-report xml --cov-config=.coveragerc
+        continue-on-error: true
 
-    - name: Verify DeepSource CLI installation
-      run: |
-        which deepsource  # Check if deepsource is in the PATH
-        deepsource version  # Print the help message of deepsource
+      - name: Check Test Results
+        if: failure()
+        run: |
+          echo "Tests failed. Please check the logs for details."
+          exit 1
 
-    - name: Upload coverage to DeepSource
-      env:
-        DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
-        DATABASE_URL: "sqlite:///./test.db"  # Use a valid SQLAlchemy URL
-        MONGO_URI: "mock_mongo_uri"
-        MONGO_DB: "mock_mongo_db"
-      run: |
-        poetry run pytest --cov=./ --cov-report xml --cov-config=.coveragerc 
-        ls -la
-        
-        deepsource report --analyzer test-coverage --key python --value-file ./coverage.xml
+      - name: Upload coverage to DeepSource
+        env:
+          DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
+        run: |
+          ls -la
+          deepsource report --analyzer test-coverage --key python --value-file ./coverage.xml

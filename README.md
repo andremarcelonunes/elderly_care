@@ -18,7 +18,7 @@ Nasceu de uma ideia de um grupo de amigos que queriam ajudar pessoas que precisa
 - Cadastrar pessoas quuee precisam de cuidados
 - Cadastrar pessoas quee podem oferecer cuidados
 - Conectar pessoas quue precisam de cuidados com pessoas que podem oferecer cuidados
-- Avaliar pessoas que oferecem cuidados
+- Avaliar pessoas quue oferecem cuidados
 - Manter um histórico de cuidados
 - Pedidos de ajuda
     

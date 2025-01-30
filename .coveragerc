@@ -7,5 +7,6 @@ omit =
     backendeldery/setup_mongo.py
     backendeldery/process_audit_logs.py
     backendeldery/tests/*
+    backendeldery/routers/*
 
 

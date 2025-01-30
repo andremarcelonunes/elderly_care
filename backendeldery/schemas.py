@@ -1,12 +1,13 @@
-from pydantic import BaseModel, EmailStr, Field, model_validator
-from typing import Optional, Literal, List
+from pydantic import BaseModel, EmailStr, Field, model_validator, StringConstraints, ConfigDict
+from typing import Optional, Literal, List, Annotated
 from datetime import date
 
 
+# noinspection PyMethodParameters
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
-    phone: str = Field(..., pattern=r'^\+?[1-9]\d{1,14}$')  # Validação do telefone
+    phone: str = Field(..., pattern=r'^\+?[1-9]\d{1,14}$')  # Validação do phone
     role: Literal["contact", "subscriber", "assisted", "attendant"]
     active: Optional[bool] = True
     password: str = Field(..., min_length=8)  # Validação básica de tamanho mínimo
@@ -48,6 +49,45 @@ class ContactCreate(BaseModel):
 class AttendantCreate(BaseModel):
     function_id: Optional[int] = None
     team_id: Optional[int] = None
+
+
+class UserSearch(BaseModel):
+    email: Optional[EmailStr] = None
+    phone: Optional[Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^\+\d{1,15}$")]] = None
+    cpf: Optional[Annotated[str, StringConstraints(strip_whitespace=True, min_length=11, max_length=14)]] = None
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "email": "john.doe@example.com",
+                # or
+                "phone": "+123456789",
+                # or
+                "cpf": "123.456.789-00"
+            }
+        }
+
+
+class SubscriberInfo(BaseModel):
+    cpf: str
+    address: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    code_address: Optional[str] = None
+    birthday: date
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserInfo(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+    phone: str
+    role: str
+    active: Optional[bool] = True
+    client_data: Optional[SubscriberInfo] = None
+    model_config = ConfigDict(from_attributes=True)
 
 
 UserCreate.model_rebuild()
