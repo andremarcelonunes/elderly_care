@@ -52,15 +52,24 @@ async def test_register_client_validation_error(db_session, mocker, user_data):
     )
 
     with pytest.raises(HTTPException):
-        await UserService.register_client(db_session, user_data, created_by=1, user_ip="127.0.0.1")
+        await UserService.register_client(db_session,
+                                          user_data,
+                                          created_by=1,
+                                          user_ip="127.0.0.1")
 
 
 @pytest.mark.asyncio
 async def test_register_client_unexpected_error(db_session, mocker, user_data):
-    mocker.patch.object(UserValidator, 'validate_subscriber', return_value=None)
-    mocker.patch.object(crud_specialized_user, 'create_subscriber', side_effect=Exception("Unexpected error"))
+    mocker.patch.object(UserValidator,
+                        'validate_subscriber', return_value=None)
+    mocker.patch.object(crud_specialized_user,
+                        'create_subscriber',
+                        side_effect=Exception("Unexpected error"))
     with pytest.raises(HTTPException) as excinfo:
-        await UserService.register_client(db_session, user_data, created_by=1, user_ip="127.0.0.1")
+        await UserService.register_client(db_session,
+                                          user_data,
+                                          created_by=1,
+                                          user_ip="127.0.0.1")
     assert excinfo.value.status_code == 500
 
 
@@ -76,17 +85,20 @@ async def test_search_subscriber_success(db_session, mocker):
                         return_value=mock_user)
 
     # Call the service
-    result = await UserService.search_subscriber(db_session, {"cpf": "123.456.789-00"})
+    result = await UserService.search_subscriber(db_session,
+                                                 {"cpf": "123.456.789-00"})
     assert result == 1  # Expect the ID to be returned
 
 
 @pytest.mark.asyncio
 async def test_search_subscriber_not_found(db_session, mocker):
     # Mock result from CRUD as None
-    mocker.patch.object(crud_specialized_user, 'search_subscriber', return_value=None)
+    mocker.patch.object(crud_specialized_user,
+                        'search_subscriber', return_value=None)
 
     # Call the service
-    result = await UserService.search_subscriber(db_session, {"cpf": "000.000.000-00"})
+    result = await UserService.search_subscriber(db_session,
+                                                 {"cpf": "000.000.000-00"})
     assert result is None
 
 
@@ -98,7 +110,8 @@ async def test_search_subscriber_db_error(db_session, mocker):
                         side_effect=Exception("Database error"))
 
     with pytest.raises(HTTPException) as excinfo:
-        await UserService.search_subscriber(db_session, {"cpf": "123.456.789-00"})
+        await UserService.search_subscriber(db_session,
+                                            {"cpf": "123.456.789-00"})
     assert excinfo.value.status_code == 500
     assert "Error in UserService: Database error" in excinfo.value.detail
 

@@ -111,11 +111,15 @@ def test_create_subscriber_success(db_session, mocker, user_data):
 
 
 def test_create_subscriber_error(db_session, mocker, user_data):
-    mocker.patch('backendeldery.crud.users.CRUDUser.create', side_effect=Exception("Unexpected error"))
+    mocker.patch('backendeldery.crud.users.CRUDUser.create',
+                 side_effect=Exception("Unexpected error"))
 
     crud_specialized_user = CRUDSpecializedUser()
     with pytest.raises(HTTPException) as excinfo:
-        crud_specialized_user.create_subscriber(db_session, user_data.model_dump(), created_by=1, user_ip="127.0.0.1")
+        crud_specialized_user.create_subscriber(db_session,
+                                                user_data.model_dump(),
+                                                created_by=1,
+                                                user_ip="127.0.0.1")
     assert excinfo.value.status_code == 500
     assert excinfo.value.detail == "Erro inesperado: Unexpected error"
 
