@@ -36,10 +36,15 @@ def user_data():
 
 @pytest.mark.asyncio
 async def test_register_client_success(db_session, mocker, user_data):
-    mocker.patch.object(UserValidator, 'validate_subscriber', return_value=None)
-    mocker.patch.object(crud_specialized_user, 'create_subscriber', return_value={"user": {}, "client": {}})
+    mocker.patch.object(UserValidator, 'validate_subscriber',
+                        return_value=None)
+    mocker.patch.object(crud_specialized_user, 'create_subscriber',
+                        return_value={"user": {}, "client": {}})
 
-    result = await UserService.register_client(db_session, user_data, created_by=1, user_ip="127.0.0.1")
+    result = await UserService.register_client(db_session,
+                                               user_data,
+                                               created_by=1,
+                                               user_ip="127.0.0.1")
     assert result == {"user": {}, "client": {}}
 
 
