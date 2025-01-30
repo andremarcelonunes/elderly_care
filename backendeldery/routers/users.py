@@ -54,7 +54,8 @@ async def register_subscriber(
 
 @router.post("/users/search/subscriber/")
 async def search_subscriber(
-        search_criteria: UserSearch = Body(..., example={"phone": "+123456789"}),
+        search_criteria: UserSearch = Body(...,
+                                           example={"phone": "+123456789"}),
         db: Session = Depends(get_db),
 ):
     """
@@ -79,7 +80,8 @@ async def search_subscriber(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error on searching subscriber: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"Error on searching subscriber: {str(e)}")
 
 
 @router.get("/users/subscriber/{user_id}")
@@ -98,4 +100,5 @@ async def get_subscriber(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving subscriber: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"Error retrieving subscriber: {str(e)}")
