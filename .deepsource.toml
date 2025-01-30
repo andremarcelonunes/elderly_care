@@ -7,7 +7,7 @@ exclude_patterns = [
   "*.toml",
   "*.yaml",
   "sanity_check/**",
-  "backendeldery/tests/*"
+  "backendeldery/tests/**"
 ]
 
 [[analyzers]]
