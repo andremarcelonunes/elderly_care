@@ -49,7 +49,7 @@ jobs:
           MONGO_URI: "mock_mongo_uri"
           MONGO_DB: "mock_mongo_db"
         run: |
-          poetry run pytest --cov=./ --cov-report xml --cov-config=.coveragerc
+          poetry run pytest -v --cov=./ --cov-report xml --cov-config=.coveragerc
         continue-on-error: true
 
       - name: Check Test Results
