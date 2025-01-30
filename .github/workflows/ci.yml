@@ -25,6 +25,10 @@ jobs:
           python-version: '3.12'
 
       - name: Set environment variables and Install Dependecies
+        env:
+          DATABASE_URL: "sqlite:///./test.db"  # Use a valid SQLAlchemy URL
+          MONGO_URI: "mock_mongo_uri"
+          MONGO_DB: "mock_mongo_db"
         run: |
           python -m pip install --upgrade pip
           pip install poetry
@@ -46,7 +50,7 @@ jobs:
       - name: Run Tests
         run: |
           poetry run pytest --cov=./ --cov-report xml --cov-config=.coveragerc
-        continue-on-error: true
+          continue-on-error: true
 
       - name: Check Test Results
         if: failure()
