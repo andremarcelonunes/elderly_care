@@ -17,7 +17,7 @@ jobs:
       - name: Checkout code V2
         uses: actions/checkout@v2
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          etch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
