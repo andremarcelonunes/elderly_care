@@ -48,7 +48,8 @@ async def register_subscriber(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error on register subscriber: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"Error on register subscriber: {str(e)}")
 
 
 @router.post("/users/search/subscriber/")
@@ -61,7 +62,9 @@ async def search_subscriber(
     """
     try:
         # Validate search criteria
-        criteria = {key: value for key, value in search_criteria.dict().items() if value}
+        criteria = {key: value
+                    for key, value in search_criteria.dict().items()
+                    if value}
         if len(criteria) != 1:
             raise HTTPException(
                 status_code=400,
@@ -72,8 +75,7 @@ async def search_subscriber(
         user = await UserService.search_subscriber(db=db, criteria=criteria)
         if user:
             return {"id": user}
-        else:
-            raise HTTPException(status_code=404, detail="Subscriber not found.")
+        raise HTTPException(status_code=404, detail="Subscriber not found.")
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -92,8 +94,7 @@ async def get_subscriber(
         user = await UserService.get_subscriber_by_id(db=db, user_id=user_id)
         if user:
             return user
-        else:
-            raise HTTPException(status_code=404, detail="Subscriber not found.")
+        raise HTTPException(status_code=404, detail="Subscriber not found.")
     except HTTPException as e:
         raise e
     except Exception as e:

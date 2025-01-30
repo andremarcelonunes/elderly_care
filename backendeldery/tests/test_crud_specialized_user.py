@@ -276,4 +276,5 @@ def test_get_user_with_client_exception(db_session, mocker):
     with pytest.raises(HTTPException) as excinfo:
         crud_specialized_user.get_user_with_client(db_session, user_id=1)
     assert excinfo.value.status_code == 500
-    assert excinfo.value.detail == "Error retrieving user with client data: Unexpected error"
+    assert excinfo.value.detail == (
+        "Error retrieving user with client data: Unexpected error")

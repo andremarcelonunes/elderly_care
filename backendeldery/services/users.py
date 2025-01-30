@@ -30,8 +30,7 @@ class UserService:
             user = crud_specialized_user.search_subscriber(db, criteria)
             if user:
                 return user.id  # Return only the user ID
-            else:
-                return None
+            return None
         except Exception as e:
             raise HTTPException(
                 status_code=500,
@@ -47,8 +46,7 @@ class UserService:
             user = crud_specialized_user.get_user_with_client(db=db, user_id=user_id)
             if user:
                 return user
-            else:
-                return None
+            return None
         except Exception as e:
             raise HTTPException(
                 status_code=500,

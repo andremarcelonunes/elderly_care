@@ -71,7 +71,9 @@ async def test_search_subscriber_success(db_session, mocker):
     mock_user.id = 1
 
     # Patch the CRUD method to return the mock_user
-    mocker.patch.object(crud_specialized_user, 'search_subscriber', return_value=mock_user)
+    mocker.patch.object(crud_specialized_user,
+                        'search_subscriber',
+                        return_value=mock_user)
 
     # Call the service
     result = await UserService.search_subscriber(db_session, {"cpf": "123.456.789-00"})
@@ -91,7 +93,9 @@ async def test_search_subscriber_not_found(db_session, mocker):
 @pytest.mark.asyncio
 async def test_search_subscriber_db_error(db_session, mocker):
     # Simulate a database error
-    mocker.patch.object(crud_specialized_user, 'search_subscriber', side_effect=Exception("Database error"))
+    mocker.patch.object(crud_specialized_user,
+                        'search_subscriber',
+                        side_effect=Exception("Database error"))
 
     with pytest.raises(HTTPException) as excinfo:
         await UserService.search_subscriber(db_session, {"cpf": "123.456.789-00"})
@@ -121,7 +125,9 @@ async def test_get_subscriber_by_id_success(db_session, mocker):
     )
 
     # Patch the CRUD method to return the mock_user_info
-    mocker.patch.object(crud_specialized_user, 'get_user_with_client', return_value=mock_user_info)
+    mocker.patch.object(crud_specialized_user,
+                        'get_user_with_client',
+                        return_value=mock_user_info)
 
     # Call the service method
     result = await UserService.get_subscriber_by_id(db_session, user_id=1)
@@ -135,7 +141,9 @@ async def test_get_subscriber_by_id_success(db_session, mocker):
 @pytest.mark.asyncio
 async def test_get_subscriber_by_id_user_not_found(db_session, mocker):
     # Patch the CRUD method to return None
-    mocker.patch.object(crud_specialized_user, 'get_user_with_client', return_value=None)
+    mocker.patch.object(crud_specialized_user,
+                        'get_user_with_client',
+                        return_value=None)
 
     # Call the service method
     result = await UserService.get_subscriber_by_id(db_session, user_id=1)
@@ -147,7 +155,8 @@ async def test_get_subscriber_by_id_user_not_found(db_session, mocker):
 @pytest.mark.asyncio
 async def test_get_subscriber_by_id_exception(db_session, mocker):
     # Patch the CRUD method to raise an exception
-    mocker.patch.object(crud_specialized_user, 'get_user_with_client', side_effect=Exception("Unexpected error"))
+    mocker.patch.object(crud_specialized_user, 'get_user_with_client',
+                        side_effect=Exception("Unexpected error"))
 
     # Call the service method and assert HTTPException is raised
     with pytest.raises(HTTPException) as excinfo:
