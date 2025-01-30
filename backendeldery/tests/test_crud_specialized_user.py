@@ -2,9 +2,9 @@
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from backendeldery.crud.users import CRUDSpecializedUser
 from backendeldery.models import User, Client
 from backendeldery.schemas import UserCreate
-from backendeldery.crud.users import CRUDSpecializedUser
 
 
 @pytest.fixture
@@ -194,3 +194,86 @@ def test_search_subscriber_user_not_found(db_session, mocker):
     result = crud_specialized_user.search_subscriber(db_session, criteria)
 
     assert result is None, "Expected no user to be found, but got a result"
+
+
+def test_get_user_with_client_success(db_session, mocker):
+    # Mock User and Client objects with proper attributes
+    mock_user = User(
+        id=1,
+        name="John Doe",
+        email="john.doe@example.com",
+        phone="+123456789",
+        role="subscriber",
+        active=True
+    )
+    mock_client = Client(
+        user_id=1,
+        cpf="12345678900",
+        birthday="1990-01-01",
+        address="123 Main St",
+        neighborhood="Downtown",
+        city="Metropolis",
+        state="NY",
+        code_address="12345"
+    )
+    mock_user.client = mock_client
+
+    # Mock the query chain
+    mock_query = mocker.Mock()
+    mock_query.outerjoin.return_value = mock_query
+    mock_query.filter.return_value = mock_query
+    mock_query.first.return_value = mock_user
+
+    # Patch the session's `query` method
+    mocker.patch.object(db_session, "query", return_value=mock_query)
+
+    # Create CRUD instance
+    crud_specialized_user = CRUDSpecializedUser()
+
+    # Call the method
+    result = crud_specialized_user.get_user_with_client(db_session, user_id=1)
+
+    # Assert the result
+    assert result.id == 1
+    assert result.name == "John Doe"
+    assert result.client_data.cpf == "12345678900"
+
+
+def test_get_user_with_client_user_not_found(db_session, mocker):
+    # Mock the query chain to return None for `first()`
+    mock_query = mocker.Mock()
+    mock_query.outerjoin.return_value = mock_query
+    mock_query.filter.return_value = mock_query
+    mock_query.first.return_value = None
+
+    # Patch the session's `query` method
+    mocker.patch.object(db_session, "query", return_value=mock_query)
+
+    # Create CRUD instance
+    crud_specialized_user = CRUDSpecializedUser()
+
+    # Call the method
+    result = crud_specialized_user.get_user_with_client(db_session, user_id=1)
+
+    # Assert the result is None
+    assert result is None
+
+
+def test_get_user_with_client_exception(db_session, mocker):
+    # Mock the query chain to raise an exception
+    mock_query = mocker.Mock()
+    mock_query.outerjoin.return_value = mock_query
+    mock_query.filter.return_value = mock_query
+    mock_query.first.side_effect = Exception("Unexpected error")
+
+    # Patch the session's `query` method
+    mocker.patch.object(db_session, "query", return_value=mock_query)
+
+    # Create CRUD instance
+    crud_specialized_user = CRUDSpecializedUser()
+
+    # Call the method and assert HTTPException is raised
+    with pytest.raises(HTTPException) as excinfo:
+        crud_specialized_user.get_user_with_client(db_session, user_id=1)
+    assert excinfo.value.status_code == 500
+    assert excinfo.value.detail == "Error retrieving user with client data: Unexpected error"

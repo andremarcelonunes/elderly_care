@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, model_validator, StringConstraints
+from pydantic import BaseModel, EmailStr, Field, model_validator, StringConstraints, ConfigDict
 from typing import Optional, Literal, List, Annotated
 from datetime import date
 
@@ -66,6 +66,28 @@ class UserSearch(BaseModel):
                 "cpf": "123.456.789-00"
             }
         }
+
+
+class SubscriberInfo(BaseModel):
+    cpf: str
+    address: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    code_address: Optional[str] = None
+    birthday: date
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserInfo(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+    phone: str
+    role: str
+    active: Optional[bool] = True
+    client_data: Optional[SubscriberInfo] = None
+    model_config = ConfigDict(from_attributes=True)
 
 
 UserCreate.model_rebuild()

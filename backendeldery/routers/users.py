@@ -78,3 +78,23 @@ async def search_subscriber(
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error on searching subscriber: {str(e)}")
+
+
+@router.get("/users/subscriber/{user_id}")
+async def get_subscriber(
+        user_id: int,
+        db: Session = Depends(get_db),
+):
+    """
+    Endpoint to get subscriber information by user ID.
+    """
+    try:
+        user = await UserService.get_subscriber_by_id(db=db, user_id=user_id)
+        if user:
+            return user
+        else:
+            raise HTTPException(status_code=404, detail="Subscriber not found.")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving subscriber: {str(e)}")

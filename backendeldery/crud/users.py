@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from backendeldery.utils import hash_password, obj_to_dict
 from backendeldery.models import User, Client
-from backendeldery.schemas import UserCreate, SubscriberCreate
+from backendeldery.schemas import UserCreate, SubscriberCreate, UserInfo, SubscriberInfo
 from .base import CRUDBase
 import logging
 
@@ -116,6 +116,30 @@ class CRUDSpecializedUser:
                 return None
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error to search subscriber: {str(e)}")
+
+    def get_user_with_client(self, db: Session, user_id: int):
+        """
+        Retrieve a user along with their client data by user ID.
+        """
+        try:
+            user = (
+                db.query(self.crud_user.model)
+                .outerjoin(self.crud_client.model, self.crud_user.model.id == self.crud_client.model.user_id)
+                .filter(self.crud_user.model.id == user_id)
+                .first()
+            )
+            if not user:
+                return None
+
+            user_info = UserInfo.from_orm(user)
+            if user.client:
+                user_info.client_data = SubscriberInfo.from_orm(user.client)
+                return user_info
+            return None
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error retrieving user with client data: {str(e)}")
 
 
 crud_specialized_user = CRUDSpecializedUser()

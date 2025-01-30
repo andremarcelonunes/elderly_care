@@ -37,3 +37,20 @@ class UserService:
                 status_code=500,
                 detail=f"Error in UserService: {str(e)}"
             )
+
+    @staticmethod
+    async def get_subscriber_by_id(db: Session, user_id: int):
+        """
+        Get subscriber information by user ID.
+        """
+        try:
+            user = crud_specialized_user.get_user_with_client(db=db, user_id=user_id)
+            if user:
+                return user
+            else:
+                return None
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error in UserService: {str(e)}"
+            )

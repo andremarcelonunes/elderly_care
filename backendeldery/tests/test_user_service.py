@@ -2,7 +2,7 @@
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from backendeldery.schemas import UserCreate
+from backendeldery.schemas import UserCreate, UserInfo, SubscriberInfo
 from backendeldery.services.users import UserService
 from backendeldery.validators.user_validator import UserValidator
 from backendeldery.crud.users import crud_specialized_user
@@ -97,3 +97,60 @@ async def test_search_subscriber_db_error(db_session, mocker):
         await UserService.search_subscriber(db_session, {"cpf": "123.456.789-00"})
     assert excinfo.value.status_code == 500
     assert "Error in UserService: Database error" in excinfo.value.detail
+
+
+@pytest.mark.asyncio
+async def test_get_subscriber_by_id_success(db_session, mocker):
+    # Mock UserInfo and SubscriberInfo objects
+    mock_user_info = UserInfo(
+        id=1,
+        name="John Doe",
+        email="john.doe@example.com",
+        phone="+123456789",
+        role="subscriber",
+        active=True,
+        client_data=SubscriberInfo(
+            cpf="12345678900",
+            birthday="1990-01-01",
+            address="123 Main St",
+            neighborhood="Downtown",
+            city="Metropolis",
+            state="NY",
+            code_address="12345"
+        )
+    )
+
+    # Patch the CRUD method to return the mock_user_info
+    mocker.patch.object(crud_specialized_user, 'get_user_with_client', return_value=mock_user_info)
+
+    # Call the service method
+    result = await UserService.get_subscriber_by_id(db_session, user_id=1)
+
+    # Assert the result
+    assert result.id == 1
+    assert result.name == "John Doe"
+    assert result.client_data.cpf == "12345678900"
+
+
+@pytest.mark.asyncio
+async def test_get_subscriber_by_id_user_not_found(db_session, mocker):
+    # Patch the CRUD method to return None
+    mocker.patch.object(crud_specialized_user, 'get_user_with_client', return_value=None)
+
+    # Call the service method
+    result = await UserService.get_subscriber_by_id(db_session, user_id=1)
+
+    # Assert the result is None
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_subscriber_by_id_exception(db_session, mocker):
+    # Patch the CRUD method to raise an exception
+    mocker.patch.object(crud_specialized_user, 'get_user_with_client', side_effect=Exception("Unexpected error"))
+
+    # Call the service method and assert HTTPException is raised
+    with pytest.raises(HTTPException) as excinfo:
+        await UserService.get_subscriber_by_id(db_session, user_id=1)
+    assert excinfo.value.status_code == 500
+    assert "Error in UserService: Unexpected error" in excinfo.value.detail
