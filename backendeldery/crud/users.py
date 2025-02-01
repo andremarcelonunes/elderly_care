@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy import update
@@ -145,8 +144,8 @@ class CRUDSpecializedUser:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error retrieving user with client data: {str(e)}")
 
+    @staticmethod
     async def update_user_and_client(
-            self,
             db_session: Session,
             user_id: int,
             user_update: UserUpdate,
@@ -194,8 +193,8 @@ class CRUDSpecializedUser:
             if user_updated or client_updated:
                 db_session.commit()
                 return {"message": "User and Client are updated!"}
-            else:
-                return {"message": "Nothing to update."}
+
+            return {"message": "Nothing to update."}
 
         except NoResultFound:
             db_session.rollback()
