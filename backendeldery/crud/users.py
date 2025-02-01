@@ -1,8 +1,12 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.exc import NoResultFound
+from sqlalchemy import update
 from fastapi import HTTPException
 from backendeldery.utils import hash_password, obj_to_dict
 from backendeldery.models import User, Client
-from backendeldery.schemas import UserCreate, SubscriberCreate, UserInfo, SubscriberInfo
+from backendeldery.schemas import UserCreate, SubscriberCreate, UserInfo, SubscriberInfo, UserUpdate
 from .base import CRUDBase
 import logging
 
@@ -140,6 +144,65 @@ class CRUDSpecializedUser:
             raise e
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error retrieving user with client data: {str(e)}")
+
+    async def update_user_and_client(
+            self,
+            db_session: Session,
+            user_id: int,
+            user_update: UserUpdate,
+            user_ip: str,
+            updated_by: int
+    ):
+        try:
+            # Fetch the user and client in a single query
+            result = db_session.execute(
+                select(User).options(joinedload(User.client)).where(User.id == user_id)
+            )
+            user = result.scalars().one_or_none()
+
+            if not user:
+                db_session.rollback()
+                return {"error": "User not found"}
+
+            # Convert the data to a dictionary and exclude unset values
+            user_data = {k: v for k, v in user_update.dict(exclude_unset=True).items() if v is not None}
+            client_data = user_data.pop("client_data", None)
+
+            # Variables to track if there were changes
+            user_updated = False
+            client_updated = False
+
+            # Update user fields dynamically
+            if user_data:
+                user_data["user_ip"] = user_ip
+                user_data["updated_by"] = updated_by
+                db_session.execute(
+                    update(User).where(User.id == user_id).values(**user_data)
+                )
+                user_updated = True
+
+            # Update client fields dynamically (if there is data and the client exists)
+            if client_data and user.client:
+                client_data["user_ip"] = user_ip
+                client_data["updated_by"] = updated_by
+                db_session.execute(
+                    update(Client).where(Client.user_id == user_id).values(**client_data)
+                )
+                client_updated = True
+
+            # Commit asynchronously if there were changes
+            if user_updated or client_updated:
+                db_session.commit()
+                return {"message": "User and Client are updated!"}
+            else:
+                return {"message": "Nothing to update."}
+
+        except NoResultFound:
+            db_session.rollback()
+            return {"error": "User not found."}
+        except Exception as e:
+            db_session.rollback()
+            return {"error": f"Error to update: {str(e)}"}
 
 
 crud_specialized_user = CRUDSpecializedUser()

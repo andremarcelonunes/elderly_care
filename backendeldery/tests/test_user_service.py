@@ -1,11 +1,14 @@
 # test_user_service.py
+from unittest.mock import patch
+
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from backendeldery.schemas import UserCreate, UserInfo, SubscriberInfo
+
+from backendeldery.crud.users import crud_specialized_user
+from backendeldery.schemas import UserCreate, UserInfo, SubscriberInfo, UserUpdate
 from backendeldery.services.users import UserService
 from backendeldery.validators.user_validator import UserValidator
-from backendeldery.crud.users import crud_specialized_user
 
 
 @pytest.fixture
@@ -30,6 +33,22 @@ def user_data():
             "neighborhood": "Downtown",
             "code_address": "12345",
             "state": "NY"
+        }
+    )
+
+
+@pytest.fixture
+def user_update_data():
+    return UserUpdate(
+        email="john.doe@example.com",
+        phone="+123456789",
+        active=True,
+        client_data={
+            "address": "123 Main St",
+            "neighborhood": "Downtown",
+            "city": "Metropolis",
+            "state": "NY",
+            "code_address": "12345"
         }
     )
 
@@ -98,6 +117,7 @@ async def test_search_subscriber_success(db_session, mocker):
 @pytest.mark.asyncio
 async def test_search_subscriber_not_found(db_session, mocker):
     # Mock result from CRUD as None
+
     mocker.patch.object(crud_specialized_user,
                         'search_subscriber', return_value=None)
 
@@ -181,3 +201,88 @@ async def test_get_subscriber_by_id_exception(db_session, mocker):
         await UserService.get_subscriber_by_id(db_session, user_id=1)
     assert excinfo.value.status_code == 500
     assert "Error in UserService: Unexpected error" in excinfo.value.detail
+
+
+@pytest.mark.asyncio
+async def test_update_subscriber_success(db_session, user_update_data):
+    mock_user_info = UserInfo(
+        id=1,
+        name="John Doe",
+        email="john.doe@example.com",
+        phone="+123456789",
+        role="subscriber",
+        active=True,
+        client_data=SubscriberInfo(
+            cpf="12345678900",
+            birthday="1990-01-01",
+            address="123 Main St",
+            neighborhood="Downtown",
+            city="Metropolis",
+            state="NY",
+            code_address="12345"
+        )
+    )
+
+    with patch.object(UserValidator, 'validate_user', return_value=None):
+        with patch.object(crud_specialized_user,
+                          'update_user_and_client',
+                          return_value={"message": "User and Client are updated!"}):
+            with patch.object(crud_specialized_user,
+                              'get_user_with_client',
+                              return_value=mock_user_info):
+                result = await UserService.update_subscriber(
+                    db=db_session,
+                    user_id=1,
+                    user_update=user_update_data,
+                    user_ip="127.0.0.1",
+                    updated_by=1
+                )
+                assert result.id == 1
+
+
+@pytest.mark.asyncio
+async def test_update_subscriber_validation_error(db_session, user_update_data):
+    with patch.object(UserValidator, 'validate_user',
+                      side_effect=HTTPException(status_code=422, detail="Validation error")):
+        with pytest.raises(HTTPException) as excinfo:
+            await UserService.update_subscriber(
+                db=db_session,
+                user_id=1,
+                user_update=user_update_data,
+                user_ip="127.0.0.1",
+                updated_by=1
+            )
+        assert excinfo.value.status_code == 422
+        assert excinfo.value.detail == "Validation error"
+
+
+@pytest.mark.asyncio
+async def test_update_subscriber_user_not_found(db_session, user_update_data):
+    with patch.object(UserValidator, 'validate_user', return_value=None):
+        with patch.object(crud_specialized_user, 'update_user_and_client', return_value={"error": "User not found"}):
+            with pytest.raises(HTTPException) as excinfo:
+                await UserService.update_subscriber(
+                    db=db_session,
+                    user_id=1,
+                    user_update=user_update_data,
+                    user_ip="127.0.0.1",
+                    updated_by=1
+                )
+            assert excinfo.value.status_code == 400
+            assert excinfo.value.detail == "User not found"
+
+
+@pytest.mark.asyncio
+async def test_update_subscriber_unexpected_exception(db_session, user_update_data):
+    with patch.object(UserValidator, 'validate_user', return_value=None):
+        with patch.object(crud_specialized_user, 'update_user_and_client', side_effect=Exception("Unexpected error")):
+            with pytest.raises(HTTPException) as excinfo:
+                await UserService.update_subscriber(
+                    db=db_session,
+                    user_id=1,
+                    user_update=user_update_data,
+                    user_ip="127.0.0.1",
+                    updated_by=1
+                )
+            assert excinfo.value.status_code == 500
+            assert excinfo.value.detail == "Error on updating: Unexpected error"

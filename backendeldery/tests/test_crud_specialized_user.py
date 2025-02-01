@@ -1,10 +1,14 @@
 # test_crud_specialized_user.py
+from unittest.mock import Mock
+
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
+
 from backendeldery.crud.users import CRUDSpecializedUser
 from backendeldery.models import User, Client
-from backendeldery.schemas import UserCreate
+from backendeldery.schemas import UserCreate, UserUpdate
 
 
 @pytest.fixture
@@ -29,6 +33,22 @@ def user_data():
             "neighborhood": "Downtown",
             "code_address": "12345",
             "state": "NY"
+        }
+    )
+
+
+@pytest.fixture
+def user_update_data():
+    return UserUpdate(
+        email="updated.email@example.com",
+        phone="+123456789",
+        active=True,
+        client_data={
+            "address": "456 New St",
+            "neighborhood": "Uptown",
+            "city": "New City",
+            "state": "NC",
+            "code_address": "67890"
         }
     )
 
@@ -282,3 +302,100 @@ def test_get_user_with_client_exception(db_session, mocker):
     assert excinfo.value.status_code == 500
     assert excinfo.value.detail == (
         "Error retrieving user with client data: Unexpected error")
+
+
+@pytest.mark.asyncio
+async def test_update_user_and_client_success(db_session, user_update_data):
+    crud_specialized_user = CRUDSpecializedUser()
+    user = Mock()
+    user.client = Mock()
+
+    db_session.execute.return_value.scalars().one_or_none.return_value = user
+
+    result = await crud_specialized_user.update_user_and_client(
+        db_session=db_session,
+        user_id=1,
+        user_update=user_update_data,
+        user_ip="127.0.0.1",
+        updated_by=1
+    )
+
+    assert result == {"message": "User and Client are updated!"}
+    db_session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_update_user_and_client_user_not_found(db_session, user_update_data):
+    crud_specialized_user = CRUDSpecializedUser()
+
+    db_session.execute.return_value.scalars().one_or_none.return_value = None
+
+    result = await crud_specialized_user.update_user_and_client(
+        db_session=db_session,
+        user_id=1,
+        user_update=user_update_data,
+        user_ip="127.0.0.1",
+        updated_by=1
+    )
+
+    assert result == {"error": "User not found"}
+
+
+@pytest.mark.asyncio
+async def test_update_user_and_client_no_changes(db_session, user_update_data):
+    crud_specialized_user = CRUDSpecializedUser()
+    user = Mock()
+    user.client = Mock()
+
+    db_session.execute.return_value.scalars().one_or_none.return_value = user
+
+    user_update_data.email = None
+    user_update_data.phone = None
+    user_update_data.active = None
+    user_update_data.client_data = None
+
+    result = await crud_specialized_user.update_user_and_client(
+        db_session=db_session,
+        user_id=1,
+        user_update=user_update_data,
+        user_ip="127.0.0.1",
+        updated_by=1
+    )
+
+    assert result == {"message": "Nothing to update."}
+
+
+@pytest.mark.asyncio
+async def test_update_user_and_client_invalid_data(db_session):
+    crud_specialized_user = CRUDSpecializedUser()
+
+    try:
+        user_update_data = UserUpdate(
+            email="invalid-email",
+            phone="+123456789",
+            active=True,
+            client_data={
+                "address": "456 New St",
+                "neighborhood": "Uptown",
+                "city": "New City",
+                "state": "NC",
+                "code_address": "67890"
+            }
+        )
+    except ValidationError as exc:
+        assert exc.errors()[0]['type'] == 'value_error'
+        return
+
+    user = Mock()
+    user.client = Mock()
+
+    db_session.execute.return_value.scalars().one_or_none.return_value = user
+
+    with pytest.raises(ValidationError):
+        await crud_specialized_user.update_user_and_client(
+            db_session=db_session,
+            user_id=1,
+            user_update=user_update_data,
+            user_ip="127.0.0.1",
+            updated_by=1
+        )

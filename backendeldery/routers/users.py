@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Body, HTTPException, Request, Header
 from sqlalchemy.orm import Session
-from backendeldery.schemas import UserCreate, UserSearch
+from backendeldery.schemas import UserCreate, UserSearch,  UserUpdate, UserResponse
 from backendeldery.services.users import UserService
 from backendeldery.utils import get_db
 
@@ -102,3 +102,45 @@ async def get_subscriber(
     except Exception as e:
         raise HTTPException(status_code=500,
                             detail=f"Error retrieving subscriber: {str(e)}")
+
+
+@router.put("/subscribers/{user_id}", response_model=UserResponse)
+async def update_subscriber(
+    user_id: int,
+    user_update: UserUpdate = Body(
+        examples={
+            "example": {
+                "email": "new.email@example.com",
+                "phone": "+123456789",
+                "active": True,
+                "client_data": {
+                    "address": "456 New St",
+                    "neighborhood": "Uptown",
+                    "city": "New City",
+                    "state": "NC",
+                    "code_address": "67890"
+                }
+            }
+        }
+    ),
+    db: Session = Depends(get_db),
+    request: Request = None,
+    x_user_id: int = Header(...),
+):
+    """
+    Endpoint to update an existing subscriber.
+    """
+    try:
+        client_ip = request.client.host if request else "unknown"
+        updated_user = await UserService.update_subscriber(
+            db=db,
+            user_id=user_id,
+            user_update=user_update,
+            user_ip=client_ip,
+            updated_by=x_user_id
+        )
+        return updated_user
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error on update subscriber: {str(e)}")
