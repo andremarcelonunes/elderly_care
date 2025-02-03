@@ -87,6 +87,7 @@ AttendantTeam = Table(
     schema="elderly_care"
 )
 
+
 class Client(Base):
     __tablename__ = "clients"
     __table_args__ = {"schema": "elderly_care"}
@@ -112,6 +113,15 @@ class Client(Base):
     user = relationship("User", back_populates="client")
     appointments = relationship("Appointment", back_populates="client")
     record = relationship("Record", back_populates="client", uselist=False)
+
+
+client_association = Table(
+    'client_association',
+    Base.metadata,
+    Column('subscriber_id', Integer, ForeignKey('elderly_care.clients.user_id'), primary_key=True),
+    Column('assisted_id', Integer, ForeignKey('elderly_care.clients.user_id'), primary_key=True),
+    schema='elderly_care'
+)
 
 
 class ClientContact(Base):
