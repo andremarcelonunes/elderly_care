@@ -53,7 +53,7 @@ class AttendantCreate(BaseModel):
 
 class UserSearch(BaseModel):
     email: Optional[EmailStr] = None
-    phone: Optional[Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^\+\d{1,15}$")]] = None
+    phone: Optional[Annotated[str, StringConstraints(strip_whitespace=True)]] = None
     cpf: Optional[Annotated[str, StringConstraints(strip_whitespace=True, min_length=11, max_length=14)]] = None
 
     class Config:
@@ -107,7 +107,7 @@ class ClientUpdate(BaseModel):
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(None, pattern=r'^\+?[1-9]\d{1,14}$')
+    phone: str = Field(..., pattern=r'^\+?[1-9]\d{1,14}$')  # Validação do phone
     active: Optional[bool] = None
     client_data: Optional[ClientUpdate] = None
 
