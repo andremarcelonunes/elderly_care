@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, model_validator, StringConstraints, ConfigDict
-from typing import Optional, Literal, List, Annotated
+from typing import Optional, Literal, List, Annotated, Dict
 from datetime import date
 
 
@@ -53,7 +53,7 @@ class AttendantCreate(BaseModel):
 
 class UserSearch(BaseModel):
     email: Optional[EmailStr] = None
-    phone: Optional[Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^\+\d{1,15}$")]] = None
+    phone: Optional[Annotated[str, StringConstraints(strip_whitespace=True)]] = None
     cpf: Optional[Annotated[str, StringConstraints(strip_whitespace=True, min_length=11, max_length=14)]] = None
 
     class Config:
@@ -88,6 +88,44 @@ class UserInfo(BaseModel):
     active: Optional[bool] = True
     client_data: Optional[SubscriberInfo] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+class ClientUpdate(BaseModel):
+    address: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    code_address: Optional[str] = None
+
+    @model_validator(mode="before")
+    def check_extra_fields(cls, values):
+        extra_fields = set(values.keys()) - set(cls.__fields__.keys())
+        if extra_fields:
+            raise ValueError("this change is not authorized")
+        return values
+
+
+class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    phone: str = Field(..., pattern=r'^\+?[1-9]\d{1,14}$')  # Validação do phone
+    active: Optional[bool] = None
+    client_data: Optional[ClientUpdate] = None
+
+    @model_validator(mode="before")
+    def check_extra_fields(cls, values):
+        extra_fields = set(values.keys()) - set(cls.__fields__.keys())
+        if extra_fields:
+            raise ValueError("this change is not authorized")
+        return values
+
+
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+    phone: str
+    active: bool
+    client_data: Optional[Dict] = None
 
 
 UserCreate.model_rebuild()
