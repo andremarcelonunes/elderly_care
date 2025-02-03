@@ -1,5 +1,4 @@
-# test_crud_specialized_user.py
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
@@ -7,6 +6,7 @@ from sqlalchemy.orm import Session
 from backendeldery.crud.users import CRUDSpecializedUser
 from backendeldery.models import User, Client
 from backendeldery.schemas import UserCreate, UserUpdate
+from sqlalchemy.exc import NoResultFound
 
 
 @pytest.fixture
@@ -398,6 +398,7 @@ async def test_update_user_and_client_invalid_data(db_session):
             updated_by=1
         )
 
+
 @pytest.mark.asyncio
 async def test_update_user_and_client_exception(db_session, user_update_data):
     db_session.execute.side_effect = Exception("Unexpected error")
@@ -409,3 +410,16 @@ async def test_update_user_and_client_exception(db_session, user_update_data):
         updated_by=1
     )
     assert result == {"error": "Error to update: Unexpected error"}
+
+
+@pytest.mark.asyncio
+async def test_update_user_and_client_no_result_found(db_session, user_update_data):
+    db_session.execute.side_effect = NoResultFound("User not found")
+    result = await CRUDSpecializedUser.update_user_and_client(
+        db_session=db_session,
+        user_id=1,
+        user_update=user_update_data,
+        user_ip="127.0.0.1",
+        updated_by=1
+    )
+    assert result == {"error": "User not found."}
