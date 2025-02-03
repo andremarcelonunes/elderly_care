@@ -75,7 +75,7 @@ def test_generic_exception_handler():
 
 
 def test_users_router():
-    response = client.get("/api/v1/users/subscriber/999")
+    response = client.get("/api/v1/users/subscriber/1")
     assert response.status_code == 404
     assert response.json() == {"detail": "Subscriber not found."}
 
