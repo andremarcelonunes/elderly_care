@@ -5,14 +5,6 @@ from pydantic import ValidationError
 from starlette.responses import JSONResponse
 from backendeldery.main import app
 
-
-@app.exception_handler(Exception)
-async def generic_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "An unexpected error occurred. Please try again later.", "error": str(exc)},
-    )
-
 client = TestClient(app, raise_server_exceptions=False)
 
 def test_http_exception_handler():

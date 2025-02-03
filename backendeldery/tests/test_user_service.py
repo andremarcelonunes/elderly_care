@@ -286,3 +286,35 @@ async def test_update_subscriber_unexpected_exception(db_session, user_update_da
                 )
             assert excinfo.value.status_code == 500
             assert excinfo.value.detail == "Error on updating: Unexpected error"
+
+
+@pytest.mark.asyncio
+async def test_update_subscriber_value_error(db_session, user_update_data):
+    with patch.object(UserValidator, 'validate_user', side_effect=ValueError("Invalid value")):
+        with pytest.raises(HTTPException) as excinfo:
+            await UserService.update_subscriber(
+                db=db_session,
+                user_id=1,
+                user_update=user_update_data,
+                user_ip="127.0.0.1",
+                updated_by=1
+            )
+        assert excinfo.value.status_code == 400
+        assert excinfo.value.detail == "Invalid value"
+
+
+@pytest.mark.asyncio
+async def test_update_subscriber_user_not_found_after_update(db_session, user_update_data):
+    with patch.object(UserValidator, 'validate_user', return_value=None):
+        with patch.object(crud_specialized_user, 'update_user_and_client', return_value={"message": "User and Client are updated!"}):
+            with patch.object(crud_specialized_user, 'get_user_with_client', return_value=None):
+                with pytest.raises(HTTPException) as excinfo:
+                    await UserService.update_subscriber(
+                        db=db_session,
+                        user_id=1,
+                        user_update=user_update_data,
+                        user_ip="127.0.0.1",
+                        updated_by=1
+                    )
+                assert excinfo.value.status_code == 404
+                assert excinfo.value.detail == "User not found"
