@@ -5,7 +5,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from backendeldery.crud.users import crud_specialized_user
+from backendeldery.crud.users import crud_specialized_user, crud_assisted
 from backendeldery.schemas import UserCreate, UserInfo, SubscriberInfo, UserUpdate
 from backendeldery.services.users import UserService
 from backendeldery.validators.user_validator import UserValidator
@@ -318,3 +318,71 @@ async def test_update_subscriber_user_not_found_after_update(db_session, user_up
                     )
                 assert excinfo.value.status_code == 404
                 assert excinfo.value.detail == "User not found"
+
+@pytest.mark.asyncio
+async def test_create_selfassociation_success(db_session, mocker):
+    mocker.patch.object(UserValidator, 'validate_association_assisted', return_value=None)
+    mocker.patch.object(crud_assisted, 'create_association', return_value={"message": "Association created"})
+
+    result = await UserService.create_selfassociation(db_session, subscriber_id=1, assisted_id=1)
+    assert result == {"message": "Association created"}
+
+
+@pytest.mark.asyncio
+async def test_create_selfassociation_validation_error(db_session, mocker):
+    mocker.patch.object(UserValidator, 'validate_association_assisted',
+                        side_effect=HTTPException(status_code=422, detail="Validation error"))
+
+    with pytest.raises(HTTPException) as excinfo:
+        await UserService.create_selfassociation(db_session,
+                                                 subscriber_id=1, assisted_id=1)
+    assert excinfo.value.status_code == 422
+    assert excinfo.value.detail == "Validation error"
+
+
+@pytest.mark.asyncio
+async def test_create_selfassociation_unexpected_error(db_session, mocker):
+    mocker.patch.object(UserValidator, 'validate_association_assisted', return_value=None)
+    mocker.patch.object(crud_assisted, 'create_association', side_effect=Exception("Unexpected error"))
+
+    with pytest.raises(HTTPException) as excinfo:
+        await UserService.create_selfassociation(db_session, subscriber_id=1, assisted_id=1)
+    assert excinfo.value.status_code == 500
+    assert "Unexpected error" in excinfo.value.detail
+
+@pytest.mark.asyncio
+async def test_create_association_success(db_session, mocker, user_data):
+    mocker.patch.object(UserValidator, 'validate_association_assisted', return_value=None)
+    mocker.patch.object(UserValidator, 'validate_subscriber', return_value=None)
+    mocker.patch.object(crud_specialized_user, 'create_subscriber', return_value={"id": 2})
+    mocker.patch.object(crud_assisted, 'create_association', return_value={"message": "Association created"})
+
+    result = await UserService.create_association(db_session, subscriber_id=1,
+                                                  assisted_data=user_data,
+                                                  user_ip="127.0.0.1")
+    assert result == {"message": "Association created"}
+
+
+@pytest.mark.asyncio
+async def test_create_association_validation_error(db_session, mocker, user_data):
+    mocker.patch.object(UserValidator, 'validate_association_assisted',
+                        side_effect=HTTPException(status_code=422,
+                                                  detail="Validation error"))
+
+    with pytest.raises(HTTPException) as excinfo:
+        await UserService.create_association(db_session, subscriber_id=1, assisted_data=user_data,
+                                             user_ip="127.0.0.1"
+                                             )
+    assert excinfo.value.status_code == 422
+    assert excinfo.value.detail == "Validation error"
+
+
+@pytest.mark.asyncio
+async def test_create_selfassociation_unexpected_error(db_session, mocker):
+    mocker.patch.object(UserValidator, 'validate_association_assisted', return_value=None)
+    mocker.patch.object(crud_assisted, 'create_association', side_effect=Exception("Unexpected error"))
+
+    with pytest.raises(HTTPException) as excinfo:
+        await UserService.create_selfassociation(db_session, subscriber_id=1, assisted_id=1)
+    assert excinfo.value.status_code == 500
+    assert "Unexpected error" in excinfo.value.detail

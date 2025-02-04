@@ -114,6 +114,15 @@ class Client(Base):
     record = relationship("Record", back_populates="client", uselist=False)
 
 
+client_association = Table(
+    'client_association',
+    Base.metadata,
+    Column('subscriber_id', Integer, ForeignKey('elderly_care.clients.user_id'), primary_key=True),
+    Column('assisted_id', Integer, ForeignKey('elderly_care.clients.user_id'), primary_key=True),
+    schema='elderly_care'
+)
+
+
 class ClientContact(Base):
     __tablename__ = "contacts"
     __table_args__ = {"schema": "elderly_care"}

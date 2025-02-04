@@ -45,6 +45,10 @@ class ContactCreate(BaseModel):
     user_client_id: int
     user_contact_id: int
 
+class AssitedCreate(BaseModel):
+    subscriber_id: int
+    assisted_id: int
+
 
 class AttendantCreate(BaseModel):
     function_id: Optional[int] = None
@@ -107,7 +111,7 @@ class ClientUpdate(BaseModel):
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
-    phone: str = Field(..., pattern=r'^\+?[1-9]\d{1,14}$')  # Validação do phone
+    phone: Optional[str] = Field(None, pattern=r'^\+?[1-9]\d{1,14}$')  # Validação do phon
     active: Optional[bool] = None
     client_data: Optional[ClientUpdate] = None
 

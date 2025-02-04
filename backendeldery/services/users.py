@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from backendeldery.crud.users import crud_specialized_user
+from backendeldery.crud.users import crud_specialized_user, crud_assisted
 from backendeldery.schemas import UserCreate, UserUpdate, UserResponse
 from backendeldery.validators.user_validator import UserValidator
 from fastapi import HTTPException
@@ -95,3 +95,43 @@ class UserService:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error on updating: {str(e)}")
+
+
+    @staticmethod
+    async def create_selfassociation(db: Session, subscriber_id: int, assisted_id: int):
+        """
+        Creates an association in the client_association table.
+        """
+        try:
+            UserValidator.validate_association_assisted(db, subscriber_id, assisted_id)
+            return crud_assisted.create_association(db, subscriber_id, assisted_id)
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    @staticmethod
+    async def create_association(db: Session, subscriber_id: int, assisted_data: UserCreate, user_ip: str):
+        """
+        Creates an association in the client_association table and registers a new client if the assisted is not the same as the subscriber.
+        """
+        try:
+            # Register the new client if the assisted is not the same as the subscriber
+            UserValidator.validate_subscriber(db, assisted_data.model_dump())
+            new_client = crud_specialized_user.create_subscriber(
+                db=db,
+                user_data=assisted_data.model_dump(),
+                created_by=subscriber_id,
+                user_ip=user_ip  # Replace with actual user IP if available
+            )
+            print("Returned from create_subscriber:", new_client["id"])
+            assisted_id = new_client["id"]
+            # Validate the association
+            UserValidator.validate_association_assisted(db, subscriber_id, assisted_id)
+
+            # Create the association
+            return crud_assisted.create_association(db, subscriber_id, assisted_id)
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

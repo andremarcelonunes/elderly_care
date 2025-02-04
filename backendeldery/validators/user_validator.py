@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from backendeldery.models import User, Client
+from backendeldery.models import User, Client, client_association
 from backendeldery.schemas import UserCreate, SubscriberCreate
 
 
@@ -48,3 +48,27 @@ class UserValidator:
         existing_client_with_phone = db.query(Client).join(User).filter(User.phone == user_data["phone"]).first()
         if existing_client_with_email or existing_client_with_phone:
             raise HTTPException(status_code=422, detail="A client with this email or phone already exists")
+
+
+    @staticmethod
+    def validate_association_assisted(db: Session, subscriber_id: int, assisted_id: int):
+        user = db.query(User).filter(User.id == subscriber_id).one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user.role != "subscriber":
+            raise HTTPException(status_code=403, detail="User does not have the 'subscriber' role")
+
+        # Check if the assisted user is already associated with another subscriber
+        existing_association = db.query(client_association).filter(
+            client_association.c.assisted_id == assisted_id
+        ).first()
+        if existing_association:
+            raise HTTPException(status_code=422, detail="Assisted user is already associated with another subscriber")
+
+        # Check if the subscriber is already associated with the assisted user
+        association = db.query(client_association).filter(
+            client_association.c.subscriber_id == subscriber_id,
+            client_association.c.assisted_id == assisted_id
+        ).first()
+        if association:
+            raise HTTPException(status_code=422, detail="Association already exists")

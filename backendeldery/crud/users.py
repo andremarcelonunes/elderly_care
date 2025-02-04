@@ -4,7 +4,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy import update
 from fastapi import HTTPException
 from backendeldery.utils import hash_password, obj_to_dict
-from backendeldery.models import User, Client
+from backendeldery.models import User, Client, client_association
 from backendeldery.schemas import UserCreate, SubscriberCreate, UserInfo, SubscriberInfo, UserUpdate
 from .base import CRUDBase
 import logging
@@ -83,10 +83,15 @@ class CRUDSpecializedUser:
 
             db.commit()  # Commit the transaction
 
-            return {
-                "user": obj_to_dict(user),  # Converte User para dicionário
-                "client": obj_to_dict(client)  # Converte Client para dicionário
+            result = {
+                "user": obj_to_dict(user),  # Expected to include something like {"id": some_id, ...}
+                "client": obj_to_dict(client)
             }
+            # Temporary print/log to inspect the result
+            print("create_subscriber result:", result)
+            return result
+            # Or using logging:
+            # logger.info("create_subscriber result: %s", result)
         except Exception as e:
             db.rollback()  # Rollback the transaction in case of error
             raise HTTPException(status_code=500, detail=f"Erro inesperado: {str(e)}")
@@ -204,6 +209,36 @@ class CRUDSpecializedUser:
             return {"error": f"Error to update: {str(e)}"}
 
 
+class CRUDAssisted:
+    def __init__(self):
+        self.model = client_association
+
+    def create_association(self, db: Session, subscriber_id: int, assisted_id: int):
+        """
+        Creates an association in the client_association table.
+        """
+        try:
+            # Fetch the user to check the role
+            user = db.query(User).filter(User.id == subscriber_id).one_or_none()
+            if not user:
+                raise ValueError("User not found")
+
+            # Create the association
+            db.execute(
+                self.model.insert().values(subscriber_id=subscriber_id, assisted_id=assisted_id)
+            )
+            db.commit()
+            return {"message": "Association created successfully"}
+
+        except ValueError as e:
+            db.rollback()
+            raise e
+        except Exception as e:
+            db.rollback()
+            raise RuntimeError(f"Error creating association: {str(e)}")
+
+
+crud_assisted = CRUDAssisted()
 crud_specialized_user = CRUDSpecializedUser()
 crud_user = CRUDUser()
 crud_client = CRUDClient()
