@@ -7,7 +7,9 @@ from fastapi import HTTPException
 
 class UserService:
     @staticmethod
-    async def register_client(db: Session, user_data: UserCreate, created_by: int, user_ip: str):
+    async def register_client(
+            db: Session, user_data: UserCreate, created_by: int, user_ip: str
+    ):
         """
         Registra um cliente no sistema.
         """
@@ -33,8 +35,7 @@ class UserService:
             return None
         except Exception as e:
             raise HTTPException(
-                status_code=500,
-                detail=f"Error in UserService: {str(e)}"
+                status_code=500, detail=f"Error in UserService: {str(e)}"
             )
 
     @staticmethod
@@ -49,8 +50,7 @@ class UserService:
             return None
         except Exception as e:
             raise HTTPException(
-                status_code=500,
-                detail=f"Error in UserService: {str(e)}"
+                status_code=500, detail=f"Error in UserService: {str(e)}"
             )
 
     @staticmethod
@@ -59,7 +59,7 @@ class UserService:
             user_id: int,
             user_update: UserUpdate,
             user_ip: str,
-            updated_by: int
+            updated_by: int,
     ):
         """
         Serviço que chama o CRUD para atualizar um usuário e seu cliente.
@@ -67,10 +67,9 @@ class UserService:
         try:
             # Chama o CRUD para fazer a atualização real no banco
             UserValidator.validate_user(db, user_update)
-            result = await crud_specialized_user.update_user_and_client(db,
-                                                                        user_id,
-                                                                        user_update,
-                                                                        user_ip, updated_by)
+            result = await crud_specialized_user.update_user_and_client(
+                db, user_id, user_update, user_ip, updated_by
+            )
             if "error" in result:
                 raise HTTPException(status_code=400, detail=result["error"])
 
@@ -86,7 +85,7 @@ class UserService:
                 phone=updated_user.phone,
                 role=updated_user.role,
                 active=updated_user.active,
-                client_data=updated_user.client_data.dict()  # Convert to dictionary
+                client_data=updated_user.client_data.dict(),  # Convert to dictionary
             )
 
         except HTTPException as e:
@@ -96,41 +95,26 @@ class UserService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error on updating: {str(e)}")
 
-
     @staticmethod
-    async def create_selfassociation(db: Session, subscriber_id: int, assisted_id: int):
+    async def create_association_assisted(
+            db: Session,
+            subscriber_id: int,
+            assisted_id: int,
+            user_ip: str,
+            created_by: int,
+    ):
         """
-        Creates an association in the client_association table.
+        Creates an association in the client_association table and registers a new
+        client if the assisted is not the same as the subscriber.
         """
         try:
-            UserValidator.validate_association_assisted(db, subscriber_id, assisted_id)
-            return crud_assisted.create_association(db, subscriber_id, assisted_id)
-        except HTTPException as e:
-            raise e
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
-
-    @staticmethod
-    async def create_association(db: Session, subscriber_id: int, assisted_data: UserCreate, user_ip: str):
-        """
-        Creates an association in the client_association table and registers a new client if the assisted is not the same as the subscriber.
-        """
-        try:
-            # Register the new client if the assisted is not the same as the subscriber
-            UserValidator.validate_subscriber(db, assisted_data.model_dump())
-            new_client = crud_specialized_user.create_subscriber(
-                db=db,
-                user_data=assisted_data.model_dump(),
-                created_by=subscriber_id,
-                user_ip=user_ip  # Replace with actual user IP if available
-            )
-            print("Returned from create_subscriber:", new_client["id"])
-            assisted_id = new_client["id"]
-            # Validate the association
+            # Validate the assisted data
             UserValidator.validate_association_assisted(db, subscriber_id, assisted_id)
 
             # Create the association
-            return crud_assisted.create_association(db, subscriber_id, assisted_id)
+            return crud_assisted.create_association(
+                db, subscriber_id, assisted_id, created_by, user_ip
+            )
         except HTTPException as e:
             raise e
         except Exception as e:

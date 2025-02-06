@@ -5,11 +5,7 @@ from backendeldery.schemas import UserUpdate, ClientUpdate
 
 def test_check_extra_fields_user():
     # Test case with no extra fields
-    valid_data = {
-        "email": "test@example.com",
-        "phone": "+123456789",
-        "active": True
-    }
+    valid_data = {"email": "test@example.com", "phone": "+123456789", "active": True}
     try:
         user_update = UserUpdate(**valid_data)
         assert user_update.email == "test@example.com"
@@ -23,7 +19,7 @@ def test_check_extra_fields_user():
         "email": "test@example.com",
         "phone": "+123456789",
         "active": True,
-        "role": "Contact"
+        "role": "Contact",
     }
     with pytest.raises(ValidationError) as exc_info:
         UserUpdate(**invalid_data)
@@ -37,7 +33,7 @@ def test_check_extra_fields_client():
         "neighborhood": "Downtown",
         "city": "Metropolis",
         "state": "NY",
-        "code_address": "12345"
+        "code_address": "12345",
     }
     try:
         client_update = ClientUpdate(**valid_data)
@@ -56,7 +52,7 @@ def test_check_extra_fields_client():
         "city": "Metropolis",
         "state": "NY",
         "code_address": "12345",
-        "extra_field": "not allowed"
+        "extra_field": "not allowed",
     }
     with pytest.raises(ValidationError) as exc_info:
         ClientUpdate(**invalid_data)

@@ -26,14 +26,16 @@ def user_data():
             "city": "Gotham",
             "neighborhood": "Uptown",
             "code_address": "67890",
-            "state": "CA"
-        }
+            "state": "CA",
+        },
     )
 
 
 def test_create_user(db_session, user_data):
     crud_user = CRUDUser()
-    created_user = crud_user.create(db_session, user_data.model_dump(), created_by=1, user_ip="127.0.0.1")
+    created_user = crud_user.create(
+        db_session, user_data.model_dump(), created_by=1, user_ip="127.0.0.1"
+    )
     assert created_user.email == user_data.email
     assert created_user.phone == user_data.phone
     assert created_user.role == user_data.role

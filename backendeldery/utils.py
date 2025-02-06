@@ -29,7 +29,7 @@ def hash_password(password: str) -> str:
     :param password: Plain text password
     :return: Password hash
     """
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -40,7 +40,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     :param hashed_password: Password hash
     :return: True if the password is valid, False otherwise
     """
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+    )
 
 
 def format_response(data=None, message="Success", status="ok"):
@@ -52,11 +54,7 @@ def format_response(data=None, message="Success", status="ok"):
     :param status: Response status ('ok', 'error', etc.)
     :return: Formatted dictionary
     """
-    return {
-        "status": status,
-        "message": message,
-        "data": data
-    }
+    return {"status": status, "message": message, "data": data}
 
 
 def validate_foreign_key(db: Session, model, field_name: str, value: int):
@@ -72,7 +70,7 @@ def validate_foreign_key(db: Session, model, field_name: str, value: int):
     if not db.query(model).filter(getattr(model, field_name) == value).first():
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid foreign key: {field_name} with value {value} does not exist."
+            detail=f"Invalid foreign key: {field_name} with value {value} does not exist.",
         )
 
 
@@ -83,6 +81,7 @@ def current_timestamp() -> str:
     :return: String with the current timestamp
     """
     return datetime.utcnow().isoformat()
+
 
 def get_db():
     """

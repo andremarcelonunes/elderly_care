@@ -5,7 +5,13 @@ from sqlalchemy import update
 from fastapi import HTTPException
 from backendeldery.utils import hash_password, obj_to_dict
 from backendeldery.models import User, Client, client_association
-from backendeldery.schemas import UserCreate, SubscriberCreate, UserInfo, SubscriberInfo, UserUpdate
+from backendeldery.schemas import (
+    UserCreate,
+    SubscriberCreate,
+    UserInfo,
+    SubscriberInfo,
+    UserUpdate,
+)
 from .base import CRUDBase
 import logging
 
@@ -13,7 +19,9 @@ logger = logging.getLogger("backendeldery")
 logger.setLevel(logging.INFO)
 if not logger.hasHandlers():
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    console_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
     logger.addHandler(console_handler)
 
 
@@ -26,7 +34,11 @@ class CRUDUser(CRUDBase[User, UserCreate]):
         Cria um novo usuário e registra informações de auditoria.
         """
         logger.info("Iniciando criação do user...")
-        user_data = {key: value for key, value in obj_in.items() if key in User.__table__.columns.keys()}
+        user_data = {
+            key: value
+            for key, value in obj_in.items()
+            if key in User.__table__.columns.keys()
+        }
         user_data["password_hash"] = hash_password(obj_in.pop("password"))
         user_data["created_by"] = created_by
         user_data["user_ip"] = user_ip
@@ -41,7 +53,14 @@ class CRUDClient(CRUDBase):
     def __init__(self):
         super().__init__(Client)
 
-    def create(self, db: Session, user: User, obj_in: SubscriberCreate, created_by: int, user_ip: str):
+    def create(
+        self,
+        db: Session,
+        user: User,
+        obj_in: SubscriberCreate,
+        created_by: int,
+        user_ip: str,
+    ):
         """
         Cria um cliente e registra informações de auditoria.
         """
@@ -61,16 +80,15 @@ class CRUDSpecializedUser:
         self.crud_user = CRUDUser()
         self.crud_client = CRUDClient()
 
-    def create_subscriber(self, db: Session, user_data: dict, created_by: int, user_ip: str):
+    def create_subscriber(
+        self, db: Session, user_data: dict, created_by: int, user_ip: str
+    ):
         """
         Cria um assinante e associa os dados do usuário em uma única transação.
         """
         try:
             user = self.crud_user.create(
-                db=db,
-                obj_in=user_data,
-                created_by=created_by,
-                user_ip=user_ip
+                db=db, obj_in=user_data, created_by=created_by, user_ip=user_ip
             )
 
             client = self.crud_client.create(
@@ -78,20 +96,19 @@ class CRUDSpecializedUser:
                 user=user,
                 created_by=created_by,
                 user_ip=user_ip,
-                obj_in=SubscriberCreate(**user_data["client_data"])
+                obj_in=SubscriberCreate(**user_data["client_data"]),
             )
 
             db.commit()  # Commit the transaction
 
-            result = {
-                "user": obj_to_dict(user),  # Expected to include something like {"id": some_id, ...}
-                "client": obj_to_dict(client)
-            }
-            # Temporary print/log to inspect the result
-            print("create_subscriber result:", result)
-            return result
-            # Or using logging:
-            # logger.info("create_subscriber result: %s", result)
+            if not user:
+                return None
+            user_info = UserInfo.from_orm(user)
+            if user.client:
+                user_info.client_data = SubscriberInfo.from_orm(user.client)
+                return user_info
+            return None
+
         except Exception as e:
             db.rollback()  # Rollback the transaction in case of error
             raise HTTPException(status_code=500, detail=f"Erro inesperado: {str(e)}")
@@ -123,7 +140,9 @@ class CRUDSpecializedUser:
             else:
                 return None
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error to search subscriber: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error to search subscriber: {str(e)}"
+            )
 
     def get_user_with_client(self, db: Session, user_id: int):
         """
@@ -132,7 +151,10 @@ class CRUDSpecializedUser:
         try:
             user = (
                 db.query(self.crud_user.model)
-                .outerjoin(self.crud_client.model, self.crud_user.model.id == self.crud_client.model.user_id)
+                .outerjoin(
+                    self.crud_client.model,
+                    self.crud_user.model.id == self.crud_client.model.user_id,
+                )
                 .filter(self.crud_user.model.id == user_id)
                 .first()
             )
@@ -147,15 +169,18 @@ class CRUDSpecializedUser:
         except HTTPException as e:
             raise e
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error retrieving user with client data: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error retrieving user with client data: {str(e)}",
+            )
 
     @staticmethod
     async def update_user_and_client(
-            db_session: Session,
-            user_id: int,
-            user_update: UserUpdate,
-            user_ip: str,
-            updated_by: int
+        db_session: Session,
+        user_id: int,
+        user_update: UserUpdate,
+        user_ip: str,
+        updated_by: int,
     ):
         try:
             # Fetch the user and client in a single query
@@ -169,7 +194,11 @@ class CRUDSpecializedUser:
                 return {"error": "User not found"}
 
             # Convert the data to a dictionary and exclude unset values
-            user_data = {k: v for k, v in user_update.dict(exclude_unset=True).items() if v is not None}
+            user_data = {
+                k: v
+                for k, v in user_update.dict(exclude_unset=True).items()
+                if v is not None
+            }
             client_data = user_data.pop("client_data", None)
 
             # Variables to track if there were changes
@@ -190,7 +219,9 @@ class CRUDSpecializedUser:
                 client_data["user_ip"] = user_ip
                 client_data["updated_by"] = updated_by
                 db_session.execute(
-                    update(Client).where(Client.user_id == user_id).values(**client_data)
+                    update(Client)
+                    .where(Client.user_id == user_id)
+                    .values(**client_data)
                 )
                 client_updated = True
 
@@ -213,7 +244,14 @@ class CRUDAssisted:
     def __init__(self):
         self.model = client_association
 
-    def create_association(self, db: Session, subscriber_id: int, assisted_id: int):
+    def create_association(
+        self,
+        db: Session,
+        subscriber_id: int,
+        assisted_id: int,
+        created_by: int,
+        user_ip: str,
+    ):
         """
         Creates an association in the client_association table.
         """
@@ -225,7 +263,12 @@ class CRUDAssisted:
 
             # Create the association
             db.execute(
-                self.model.insert().values(subscriber_id=subscriber_id, assisted_id=assisted_id)
+                self.model.insert().values(
+                    subscriber_id=subscriber_id,
+                    assisted_id=assisted_id,
+                    created_by=created_by,
+                    user_ip=user_ip,
+                )
             )
             db.commit()
             return {"message": "Association created successfully"}

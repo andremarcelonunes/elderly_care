@@ -8,6 +8,7 @@ ModelType = TypeVar("ModelType")
 
 CreateSchemaType = TypeVar("CreateSchemaType")
 
+
 class CRUDBase(Generic[ModelType, CreateSchemaType]):
     def __init__(self, model: Type[ModelType]):
         self.model = model
@@ -27,7 +28,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType]):
         # Busca o objeto no banco de dados
         db_obj = db.query(self.model).filter(self.model.id == id).first()
         if not db_obj:
-            raise HTTPException(status_code=404, detail=f"{self.model.__name__} with id {id} not found.")
+            raise HTTPException(
+                status_code=404, detail=f"{self.model.__name__} with id {id} not found."
+            )
 
         for field, value in obj_in.dict(exclude_unset=True).items():
             setattr(db_obj, field, value)
@@ -40,7 +43,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType]):
         # Busca o objeto no banco de dados
         db_obj = db.query(self.model).filter(self.model.id == id).first()
         if not db_obj:
-            raise HTTPException(status_code=404, detail=f"{self.model.__name__} with id {id} not found.")
+            raise HTTPException(
+                status_code=404, detail=f"{self.model.__name__} with id {id} not found."
+            )
 
         db.delete(db_obj)
         db.commit()

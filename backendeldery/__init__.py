@@ -1,4 +1,4 @@
-from .crud.users import CRUDUser, CRUDClient,  CRUDSpecializedUser
+from .crud.users import CRUDUser, CRUDClient, CRUDSpecializedUser
 from .models import User, Client
 from .routers import users
 from .utils import hash_password, obj_to_dict
@@ -12,4 +12,4 @@ __all__ = [
     "User",
     "Client",
     "users",
-    ]
+]

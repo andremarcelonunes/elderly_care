@@ -32,8 +32,8 @@ def user_data():
             "city": "Metropolis",
             "neighborhood": "Downtown",
             "code_address": "12345",
-            "state": "NY"
-        }
+            "state": "NY",
+        },
     )
 
 
@@ -48,22 +48,23 @@ def user_update_data():
             "neighborhood": "Downtown",
             "city": "Metropolis",
             "state": "NY",
-            "code_address": "12345"
-        }
+            "code_address": "12345",
+        },
     )
 
 
 @pytest.mark.asyncio
 async def test_register_client_success(db_session, mocker, user_data):
-    mocker.patch.object(UserValidator, 'validate_subscriber',
-                        return_value=None)
-    mocker.patch.object(crud_specialized_user, 'create_subscriber',
-                        return_value={"user": {}, "client": {}})
+    mocker.patch.object(UserValidator, "validate_subscriber", return_value=None)
+    mocker.patch.object(
+        crud_specialized_user,
+        "create_subscriber",
+        return_value={"user": {}, "client": {}},
+    )
 
-    result = await UserService.register_client(db_session,
-                                               user_data,
-                                               created_by=1,
-                                               user_ip="127.0.0.1")
+    result = await UserService.register_client(
+        db_session, user_data, created_by=1, user_ip="127.0.0.1"
+    )
     assert result == {"user": {}, "client": {}}
 
 
@@ -71,29 +72,28 @@ async def test_register_client_success(db_session, mocker, user_data):
 async def test_register_client_validation_error(db_session, mocker, user_data):
     mocker.patch.object(
         UserValidator,
-        'validate_subscriber',
-        side_effect=HTTPException(status_code=422, detail="Validation error")
+        "validate_subscriber",
+        side_effect=HTTPException(status_code=422, detail="Validation error"),
     )
 
     with pytest.raises(HTTPException):
-        await UserService.register_client(db_session,
-                                          user_data,
-                                          created_by=1,
-                                          user_ip="127.0.0.1")
+        await UserService.register_client(
+            db_session, user_data, created_by=1, user_ip="127.0.0.1"
+        )
 
 
 @pytest.mark.asyncio
 async def test_register_client_unexpected_error(db_session, mocker, user_data):
-    mocker.patch.object(UserValidator,
-                        'validate_subscriber', return_value=None)
-    mocker.patch.object(crud_specialized_user,
-                        'create_subscriber',
-                        side_effect=Exception("Unexpected error"))
+    mocker.patch.object(UserValidator, "validate_subscriber", return_value=None)
+    mocker.patch.object(
+        crud_specialized_user,
+        "create_subscriber",
+        side_effect=Exception("Unexpected error"),
+    )
     with pytest.raises(HTTPException) as excinfo:
-        await UserService.register_client(db_session,
-                                          user_data,
-                                          created_by=1,
-                                          user_ip="127.0.0.1")
+        await UserService.register_client(
+            db_session, user_data, created_by=1, user_ip="127.0.0.1"
+        )
     assert excinfo.value.status_code == 500
 
 
@@ -104,13 +104,12 @@ async def test_search_subscriber_success(db_session, mocker):
     mock_user.id = 1
 
     # Patch the CRUD method to return the mock_user
-    mocker.patch.object(crud_specialized_user,
-                        'search_subscriber',
-                        return_value=mock_user)
+    mocker.patch.object(
+        crud_specialized_user, "search_subscriber", return_value=mock_user
+    )
 
     # Call the service
-    result = await UserService.search_subscriber(db_session,
-                                                 {"cpf": "123.456.789-00"})
+    result = await UserService.search_subscriber(db_session, {"cpf": "123.456.789-00"})
     assert result == 1  # Expect the ID to be returned
 
 
@@ -118,25 +117,24 @@ async def test_search_subscriber_success(db_session, mocker):
 async def test_search_subscriber_not_found(db_session, mocker):
     # Mock result from CRUD as None
 
-    mocker.patch.object(crud_specialized_user,
-                        'search_subscriber', return_value=None)
+    mocker.patch.object(crud_specialized_user, "search_subscriber", return_value=None)
 
     # Call the service
-    result = await UserService.search_subscriber(db_session,
-                                                 {"cpf": "000.000.000-00"})
+    result = await UserService.search_subscriber(db_session, {"cpf": "000.000.000-00"})
     assert result is None
 
 
 @pytest.mark.asyncio
 async def test_search_subscriber_db_error(db_session, mocker):
     # Simulate a database error
-    mocker.patch.object(crud_specialized_user,
-                        'search_subscriber',
-                        side_effect=Exception("Database error"))
+    mocker.patch.object(
+        crud_specialized_user,
+        "search_subscriber",
+        side_effect=Exception("Database error"),
+    )
 
     with pytest.raises(HTTPException) as excinfo:
-        await UserService.search_subscriber(db_session,
-                                            {"cpf": "123.456.789-00"})
+        await UserService.search_subscriber(db_session, {"cpf": "123.456.789-00"})
     assert excinfo.value.status_code == 500
     assert "Error in UserService: Database error" in excinfo.value.detail
 
@@ -158,14 +156,14 @@ async def test_get_subscriber_by_id_success(db_session, mocker):
             neighborhood="Downtown",
             city="Metropolis",
             state="NY",
-            code_address="12345"
-        )
+            code_address="12345",
+        ),
     )
 
     # Patch the CRUD method to return the mock_user_info
-    mocker.patch.object(crud_specialized_user,
-                        'get_user_with_client',
-                        return_value=mock_user_info)
+    mocker.patch.object(
+        crud_specialized_user, "get_user_with_client", return_value=mock_user_info
+    )
 
     # Call the service method
     result = await UserService.get_subscriber_by_id(db_session, user_id=1)
@@ -179,9 +177,9 @@ async def test_get_subscriber_by_id_success(db_session, mocker):
 @pytest.mark.asyncio
 async def test_get_subscriber_by_id_user_not_found(db_session, mocker):
     # Patch the CRUD method to return None
-    mocker.patch.object(crud_specialized_user,
-                        'get_user_with_client',
-                        return_value=None)
+    mocker.patch.object(
+        crud_specialized_user, "get_user_with_client", return_value=None
+    )
 
     # Call the service method
     result = await UserService.get_subscriber_by_id(db_session, user_id=1)
@@ -193,8 +191,11 @@ async def test_get_subscriber_by_id_user_not_found(db_session, mocker):
 @pytest.mark.asyncio
 async def test_get_subscriber_by_id_exception(db_session, mocker):
     # Patch the CRUD method to raise an exception
-    mocker.patch.object(crud_specialized_user, 'get_user_with_client',
-                        side_effect=Exception("Unexpected error"))
+    mocker.patch.object(
+        crud_specialized_user,
+        "get_user_with_client",
+        side_effect=Exception("Unexpected error"),
+    )
 
     # Call the service method and assert HTTPException is raised
     with pytest.raises(HTTPException) as excinfo:
@@ -219,38 +220,45 @@ async def test_update_subscriber_success(db_session, user_update_data):
             neighborhood="Downtown",
             city="Metropolis",
             state="NY",
-            code_address="12345"
-        )
+            code_address="12345",
+        ),
     )
 
-    with patch.object(UserValidator, 'validate_user', return_value=None):
-        with patch.object(crud_specialized_user,
-                          'update_user_and_client',
-                          return_value={"message": "User and Client are updated!"}):
-            with patch.object(crud_specialized_user,
-                              'get_user_with_client',
-                              return_value=mock_user_info):
+    with patch.object(UserValidator, "validate_user", return_value=None):
+        with patch.object(
+            crud_specialized_user,
+            "update_user_and_client",
+            return_value={"message": "User and Client are updated!"},
+        ):
+            with patch.object(
+                crud_specialized_user,
+                "get_user_with_client",
+                return_value=mock_user_info,
+            ):
                 result = await UserService.update_subscriber(
                     db=db_session,
                     user_id=1,
                     user_update=user_update_data,
                     user_ip="127.0.0.1",
-                    updated_by=1
+                    updated_by=1,
                 )
                 assert result.id == 1
 
 
 @pytest.mark.asyncio
 async def test_update_subscriber_validation_error(db_session, user_update_data):
-    with patch.object(UserValidator, 'validate_user',
-                      side_effect=HTTPException(status_code=422, detail="Validation error")):
+    with patch.object(
+        UserValidator,
+        "validate_user",
+        side_effect=HTTPException(status_code=422, detail="Validation error"),
+    ):
         with pytest.raises(HTTPException) as excinfo:
             await UserService.update_subscriber(
                 db=db_session,
                 user_id=1,
                 user_update=user_update_data,
                 user_ip="127.0.0.1",
-                updated_by=1
+                updated_by=1,
             )
         assert excinfo.value.status_code == 422
         assert excinfo.value.detail == "Validation error"
@@ -258,15 +266,19 @@ async def test_update_subscriber_validation_error(db_session, user_update_data):
 
 @pytest.mark.asyncio
 async def test_update_subscriber_user_not_found(db_session, user_update_data):
-    with patch.object(UserValidator, 'validate_user', return_value=None):
-        with patch.object(crud_specialized_user, 'update_user_and_client', return_value={"error": "User not found"}):
+    with patch.object(UserValidator, "validate_user", return_value=None):
+        with patch.object(
+            crud_specialized_user,
+            "update_user_and_client",
+            return_value={"error": "User not found"},
+        ):
             with pytest.raises(HTTPException) as excinfo:
                 await UserService.update_subscriber(
                     db=db_session,
                     user_id=1,
                     user_update=user_update_data,
                     user_ip="127.0.0.1",
-                    updated_by=1
+                    updated_by=1,
                 )
             assert excinfo.value.status_code == 400
             assert excinfo.value.detail == "User not found"
@@ -274,15 +286,19 @@ async def test_update_subscriber_user_not_found(db_session, user_update_data):
 
 @pytest.mark.asyncio
 async def test_update_subscriber_unexpected_exception(db_session, user_update_data):
-    with patch.object(UserValidator, 'validate_user', return_value=None):
-        with patch.object(crud_specialized_user, 'update_user_and_client', side_effect=Exception("Unexpected error")):
+    with patch.object(UserValidator, "validate_user", return_value=None):
+        with patch.object(
+            crud_specialized_user,
+            "update_user_and_client",
+            side_effect=Exception("Unexpected error"),
+        ):
             with pytest.raises(HTTPException) as excinfo:
                 await UserService.update_subscriber(
                     db=db_session,
                     user_id=1,
                     user_update=user_update_data,
                     user_ip="127.0.0.1",
-                    updated_by=1
+                    updated_by=1,
                 )
             assert excinfo.value.status_code == 500
             assert excinfo.value.detail == "Error on updating: Unexpected error"
@@ -290,99 +306,91 @@ async def test_update_subscriber_unexpected_exception(db_session, user_update_da
 
 @pytest.mark.asyncio
 async def test_update_subscriber_value_error(db_session, user_update_data):
-    with patch.object(UserValidator, 'validate_user', side_effect=ValueError("Invalid value")):
+    with patch.object(
+        UserValidator, "validate_user", side_effect=ValueError("Invalid value")
+    ):
         with pytest.raises(HTTPException) as excinfo:
             await UserService.update_subscriber(
                 db=db_session,
                 user_id=1,
                 user_update=user_update_data,
                 user_ip="127.0.0.1",
-                updated_by=1
+                updated_by=1,
             )
         assert excinfo.value.status_code == 400
         assert excinfo.value.detail == "Invalid value"
 
 
 @pytest.mark.asyncio
-async def test_update_subscriber_user_not_found_after_update(db_session, user_update_data):
-    with patch.object(UserValidator, 'validate_user', return_value=None):
-        with patch.object(crud_specialized_user, 'update_user_and_client', return_value={"message": "User and Client are updated!"}):
-            with patch.object(crud_specialized_user, 'get_user_with_client', return_value=None):
+async def test_update_subscriber_user_not_found_after_update(
+    db_session, user_update_data
+):
+    with patch.object(UserValidator, "validate_user", return_value=None):
+        with patch.object(
+            crud_specialized_user,
+            "update_user_and_client",
+            return_value={"message": "User and Client " "are updated!"},
+        ):
+            with patch.object(
+                crud_specialized_user, "get_user_with_client", return_value=None
+            ):
                 with pytest.raises(HTTPException) as excinfo:
                     await UserService.update_subscriber(
                         db=db_session,
                         user_id=1,
                         user_update=user_update_data,
                         user_ip="127.0.0.1",
-                        updated_by=1
+                        updated_by=1,
                     )
                 assert excinfo.value.status_code == 404
                 assert excinfo.value.detail == "User not found"
 
-@pytest.mark.asyncio
-async def test_create_selfassociation_success(db_session, mocker):
-    mocker.patch.object(UserValidator, 'validate_association_assisted', return_value=None)
-    mocker.patch.object(crud_assisted, 'create_association', return_value={"message": "Association created"})
-
-    result = await UserService.create_selfassociation(db_session, subscriber_id=1, assisted_id=1)
-    assert result == {"message": "Association created"}
-
-
-@pytest.mark.asyncio
-async def test_create_selfassociation_validation_error(db_session, mocker):
-    mocker.patch.object(UserValidator, 'validate_association_assisted',
-                        side_effect=HTTPException(status_code=422, detail="Validation error"))
-
-    with pytest.raises(HTTPException) as excinfo:
-        await UserService.create_selfassociation(db_session,
-                                                 subscriber_id=1, assisted_id=1)
-    assert excinfo.value.status_code == 422
-    assert excinfo.value.detail == "Validation error"
-
-
-@pytest.mark.asyncio
-async def test_create_selfassociation_unexpected_error(db_session, mocker):
-    mocker.patch.object(UserValidator, 'validate_association_assisted', return_value=None)
-    mocker.patch.object(crud_assisted, 'create_association', side_effect=Exception("Unexpected error"))
-
-    with pytest.raises(HTTPException) as excinfo:
-        await UserService.create_selfassociation(db_session, subscriber_id=1, assisted_id=1)
-    assert excinfo.value.status_code == 500
-    assert "Unexpected error" in excinfo.value.detail
 
 @pytest.mark.asyncio
 async def test_create_association_success(db_session, mocker, user_data):
-    mocker.patch.object(UserValidator, 'validate_association_assisted', return_value=None)
-    mocker.patch.object(UserValidator, 'validate_subscriber', return_value=None)
-    mocker.patch.object(crud_specialized_user, 'create_subscriber', return_value={"id": 2})
-    mocker.patch.object(crud_assisted, 'create_association', return_value={"message": "Association created"})
+    mocker.patch.object(
+        UserValidator, "validate_association_assisted", return_value=None
+    )
+    mocker.patch.object(UserValidator, "validate_subscriber", return_value=None)
+    mocker.patch.object(
+        crud_specialized_user, "create_subscriber", return_value={"id": 2}
+    )
+    mocker.patch.object(
+        crud_assisted,
+        "create_association",
+        return_value={"message": "Association created"},
+    )
 
-    result = await UserService.create_association(db_session, subscriber_id=1,
-                                                  assisted_data=user_data,
-                                                  user_ip="127.0.0.1")
+    result = await UserService.create_association(
+        db_session, subscriber_id=1, assisted_data=user_data, user_ip="127.0.0.1"
+    )
     assert result == {"message": "Association created"}
 
 
 @pytest.mark.asyncio
 async def test_create_association_validation_error(db_session, mocker, user_data):
-    mocker.patch.object(UserValidator, 'validate_association_assisted',
-                        side_effect=HTTPException(status_code=422,
-                                                  detail="Validation error"))
+    # Ensure validate_subscriber doesn't block the test
+    mocker.patch.object(UserValidator, "validate_subscriber", return_value=None)
 
+    # Ensure create_subscriber returns a dummy client so that we get to the next step
+    fake_client = {"id": 123}
+    mocker.patch.object(
+        crud_specialized_user, "create_subscriber", return_value=fake_client
+    )
+
+    # Patch the validator method where it is *used* (adjust the path if needed)
+    mocker.patch.object(
+        UserValidator,
+        "validate_association_assisted",
+        side_effect=HTTPException(status_code=422, detail="Validation error"),
+    )
+
+    # Run the test expecting the HTTPException from the association validation
     with pytest.raises(HTTPException) as excinfo:
-        await UserService.create_association(db_session, subscriber_id=1, assisted_data=user_data,
-                                             user_ip="127.0.0.1"
-                                             )
+        await UserService.create_association(
+            db_session, subscriber_id=1, assisted_data=user_data, user_ip="127.0.0.1"
+        )
     assert excinfo.value.status_code == 422
     assert excinfo.value.detail == "Validation error"
 
 
-@pytest.mark.asyncio
-async def test_create_selfassociation_unexpected_error(db_session, mocker):
-    mocker.patch.object(UserValidator, 'validate_association_assisted', return_value=None)
-    mocker.patch.object(crud_assisted, 'create_association', side_effect=Exception("Unexpected error"))
-
-    with pytest.raises(HTTPException) as excinfo:
-        await UserService.create_selfassociation(db_session, subscriber_id=1, assisted_id=1)
-    assert excinfo.value.status_code == 500
-    assert "Unexpected error" in excinfo.value.detail

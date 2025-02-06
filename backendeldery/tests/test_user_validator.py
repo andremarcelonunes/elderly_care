@@ -28,8 +28,8 @@ def user_data():
             "city": "Metropolis",
             "neighborhood": "Downtown",
             "code_address": "12345",
-            "state": "NY"
-        }
+            "state": "NY",
+        },
     )
 
 
@@ -49,7 +49,10 @@ def test_validate_user_email_exists(db_session, user_data):
 
 
 def test_validate_user_phone_exists(db_session, user_data):
-    db_session.query.return_value.filter.return_value.first.side_effect = [None, User()]  # Email None, Phone exists
+    db_session.query.return_value.filter.return_value.first.side_effect = [
+        None,
+        User(),
+    ]  # Email None, Phone exists
     with pytest.raises(HTTPException) as excinfo:
         UserValidator.validate_user(db_session, user_data)
     assert excinfo.value.status_code == 422
@@ -75,22 +78,22 @@ def test_validate_subscriber_missing_client_data(db_session, user_data):
 
 def test_validate_subscriber_exists(db_session, user_data):
     db_session.query(Client).join(User).filter(
-        (Client.cpf == user_data.client_data.cpf) &  # Use dot notation
-        (User.email == user_data.email) &
-        (User.phone == user_data.phone)
+        (Client.cpf == user_data.client_data.cpf)  # Use dot notation
+        & (User.email == user_data.email)
+        & (User.phone == user_data.phone)
     ).first.return_value = Client()
     with pytest.raises(HTTPException) as excinfo:
         UserValidator.validate_subscriber(db_session, user_data.model_dump())
     assert excinfo.value.status_code == 422
-    assert excinfo.value.detail == "The subscriber already exists"
+    assert excinfo.value.detail == "The client already exists"
 
 
 def test_validate_subscriber_user_exists_with_different_cpf(db_session, user_data):
     user_data.client_data.cpf = "123.456.789-40"
     db_session.query(Client).join(User).filter(
-        (Client.cpf == "987.654.321-00") &  # Existing client CPF
-        (User.email == user_data.email) &
-        (User.phone == user_data.phone)
+        (Client.cpf == "987.654.321-00")  # Existing client CPF
+        & (User.email == user_data.email)
+        & (User.phone == user_data.phone)
     ).first.return_value = Client(cpf="987.654.321-00")
 
     with pytest.raises(HTTPException) as excinfo:
@@ -99,14 +102,18 @@ def test_validate_subscriber_user_exists_with_different_cpf(db_session, user_dat
 
 
 def test_validate_subscriber_client_with_email_exists(db_session, user_data):
-    db_session.query(Client).join(User).filter(User.phone == user_data.email).first.return_value = Client()
+    db_session.query(Client).join(User).filter(
+        User.phone == user_data.email
+    ).first.return_value = Client()
     with pytest.raises(HTTPException) as excinfo:
         UserValidator.validate_subscriber(db_session, user_data.model_dump())
     assert excinfo.value.status_code == 422
 
 
 def test_validate_subscriber_client_with_phone_exists(db_session, user_data):
-    db_session.query(Client).join(User).filter(User.phone == user_data.phone).first.return_value = Client()
+    db_session.query(Client).join(User).filter(
+        User.phone == user_data.phone
+    ).first.return_value = Client()
     with pytest.raises(HTTPException) as excinfo:
         UserValidator.validate_subscriber(db_session, user_data.model_dump())
     assert excinfo.value.status_code == 422
