@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import Mock
 import pytest
 from fastapi import HTTPException
@@ -5,7 +6,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from backendeldery.crud.users import CRUDSpecializedUser
 from backendeldery.models import User, Client
-from backendeldery.schemas import UserCreate, UserUpdate
+from backendeldery.schemas import UserCreate, UserUpdate, UserInfo
 from sqlalchemy.exc import NoResultFound
 
 
@@ -30,8 +31,8 @@ def user_data():
             "city": "Metropolis",
             "neighborhood": "Downtown",
             "code_address": "12345",
-            "state": "NY"
-        }
+            "state": "NY",
+        },
     )
 
 
@@ -46,13 +47,13 @@ def user_update_data():
             "neighborhood": "Uptown",
             "city": "New City",
             "state": "NC",
-            "code_address": "67890"
-        }
+            "code_address": "67890",
+        },
     )
 
 
 def test_create_subscriber_success(db_session, mocker, user_data):
-    # Mock User and Client objects with proper attributes
+    # Create a mock User with required attributes.
     mock_user = User(
         id=1,
         name="John Doe",
@@ -65,11 +66,12 @@ def test_create_subscriber_success(db_session, mocker, user_data):
         created_by=1,
         updated_by=None,
         user_ip="127.0.0.1",
-        password_hash="hashed_password"
+        password_hash="hashed_password",
     )
 
+    # Create a mock Client with required attributes.
     mock_client = Client(
-        user_id=1,  # Use user_id as the primary key
+        user_id=1,  # using user_id as the primary key
         team_id=None,
         cpf="12345678900",
         birthday="1990-01-01",
@@ -82,62 +84,59 @@ def test_create_subscriber_success(db_session, mocker, user_data):
         updated_at=None,
         created_by=1,
         updated_by=None,
-        user_ip="127.0.0.1"
+        user_ip="127.0.0.1",
     )
 
-    # Mock CRUD methods
-    mocker.patch('backendeldery.crud.users.CRUDUser.create', return_value=mock_user)
-    mocker.patch('backendeldery.crud.users.CRUDClient.create', return_value=mock_client)
+    # IMPORTANT: Attach the client to the user so that user.client is truthy.
+    mock_user.client = mock_client
+
+    # Patch the CRUD methods to return our mock objects.
+    mocker.patch("backendeldery.crud.users.CRUDUser.create", return_value=mock_user)
+    mocker.patch("backendeldery.crud.users.CRUDClient.create", return_value=mock_client)
+
+    # Instantiate your specialized user crud and call create_subscriber.
     crud_specialized_user = CRUDSpecializedUser()
     result = crud_specialized_user.create_subscriber(
-        db_session,
-        user_data.model_dump(),
-        created_by=1,
-        user_ip="127.0.0.1"
+        db_session, user_data.model_dump(), created_by=1, user_ip="127.0.0.1"
     )
 
-    assert result['user'] == {
-        "id": 1,
-        "name": "John Doe",
-        "email": "john.doe@example.com",
-        "phone": "+123456789",
-        "role": "subscriber",
-        "active": True,
-        "created_at": "2025-01-01T12:00:00",
-        "updated_at": None,
-        "created_by": 1,
-        "updated_by": None,
-        "user_ip": "127.0.0.1",
-        "password_hash": "hashed_password"
-    }, f"User mismatch: {result['user']}"
-    assert result['client'] == {
-        "user_id": 1,  # Use user_id as the primary key
-        "team_id": None,
-        "cpf": "12345678900",
-        "birthday": "1990-01-01",
-        "address": "123 Main St",
-        "neighborhood": "Downtown",
-        "city": "Metropolis",
-        "state": "NY",
-        "code_address": "12345",
-        "created_at": "2025-01-01T12:00:00",
-        "updated_at": None,
-        "created_by": 1,
-        "updated_by": None,
-        "user_ip": "127.0.0.1"
-    }, f"Client mismatch: {result['client']}"
+    # Assert that the result is an instance of UserInfo.
+    assert isinstance(
+        result, UserInfo
+    ), "The returned object is not a UserInfo instance."
+
+    # Now check the fields of the UserInfo.
+    assert result.id == 1
+    assert result.name == "John Doe"
+    assert result.email == "john.doe@example.com"
+    assert result.phone == "+123456789"
+    assert result.role == "subscriber"
+    assert result.active is True
+
+    # Assert the nested SubscriberInfo (client_data) fields.
+    client_data = result.client_data
+    assert client_data is not None, "Expected client_data to be populated."
+    assert client_data.cpf == "12345678900"
+    assert client_data.address == "123 Main St"
+    assert client_data.neighborhood == "Downtown"
+    assert client_data.city == "Metropolis"
+    assert client_data.state == "NY"
+    assert client_data.code_address == "12345"
+    # Convert the birthday string to a date object for comparison.
+    assert client_data.birthday == date(1990, 1, 1)
 
 
 def test_create_subscriber_error(db_session, mocker, user_data):
-    mocker.patch('backendeldery.crud.users.CRUDUser.create',
-                 side_effect=Exception("Unexpected error"))
+    mocker.patch(
+        "backendeldery.crud.users.CRUDUser.create",
+        side_effect=Exception("Unexpected error"),
+    )
 
     crud_specialized_user = CRUDSpecializedUser()
     with pytest.raises(HTTPException) as excinfo:
-        crud_specialized_user.create_subscriber(db_session,
-                                                user_data.model_dump(),
-                                                created_by=1,
-                                                user_ip="127.0.0.1")
+        crud_specialized_user.create_subscriber(
+            db_session, user_data.model_dump(), created_by=1, user_ip="127.0.0.1"
+        )
     assert excinfo.value.status_code == 500
     assert excinfo.value.detail == "Erro inesperado: Unexpected error"
 
@@ -150,7 +149,7 @@ def test_search_subscriber_success_by_cpf(db_session, mocker):
         email="john.doe@example.com",
         phone="+123456789",
         role="subscriber",
-        active=True
+        active=True,
     )
 
     # Mock the query chain
@@ -179,7 +178,7 @@ def test_search_subscriber_success_by_email(db_session, mocker):
         email="jane.doe@example.com",
         phone="+987654321",
         role="subscriber",
-        active=True
+        active=True,
     )
 
     # Mock the query chain
@@ -226,7 +225,7 @@ def test_get_user_with_client_success(db_session, mocker):
         email="john.doe@example.com",
         phone="+123456789",
         role="subscriber",
-        active=True
+        active=True,
     )
     mock_client = Client(
         user_id=1,
@@ -236,7 +235,7 @@ def test_get_user_with_client_success(db_session, mocker):
         neighborhood="Downtown",
         city="Metropolis",
         state="NY",
-        code_address="12345"
+        code_address="12345",
     )
     mock_user.client = mock_client
 
@@ -299,7 +298,8 @@ def test_get_user_with_client_exception(db_session, mocker):
         crud_specialized_user.get_user_with_client(db_session, user_id=1)
     assert excinfo.value.status_code == 500
     assert excinfo.value.detail == (
-        "Error retrieving user with client data: Unexpected error")
+        "Error retrieving user with client data: Unexpected error"
+    )
 
 
 @pytest.mark.asyncio
@@ -315,7 +315,7 @@ async def test_update_user_and_client_success(db_session, user_update_data):
         user_id=1,
         user_update=user_update_data,
         user_ip="127.0.0.1",
-        updated_by=1
+        updated_by=1,
     )
 
     assert result == {"message": "User and Client are updated!"}
@@ -333,7 +333,7 @@ async def test_update_user_and_client_user_not_found(db_session, user_update_dat
         user_id=1,
         user_update=user_update_data,
         user_ip="127.0.0.1",
-        updated_by=1
+        updated_by=1,
     )
 
     assert result == {"error": "User not found"}
@@ -357,7 +357,7 @@ async def test_update_user_and_client_no_changes(db_session, user_update_data):
         user_id=1,
         user_update=user_update_data,
         user_ip="127.0.0.1",
-        updated_by=1
+        updated_by=1,
     )
 
     assert result == {"message": "Nothing to update."}
@@ -377,11 +377,11 @@ async def test_update_user_and_client_invalid_data(db_session):
                 "neighborhood": "Uptown",
                 "city": "New City",
                 "state": "NC",
-                "code_address": "67890"
-            }
+                "code_address": "67890",
+            },
         )
     except ValidationError as exc:
-        assert exc.errors()[0]['type'] == 'value_error'
+        assert exc.errors()[0]["type"] == "value_error"
         return
 
     user = Mock()
@@ -395,7 +395,7 @@ async def test_update_user_and_client_invalid_data(db_session):
             user_id=1,
             user_update=user_update_data,
             user_ip="127.0.0.1",
-            updated_by=1
+            updated_by=1,
         )
 
 
@@ -407,7 +407,7 @@ async def test_update_user_and_client_exception(db_session, user_update_data):
         user_id=1,
         user_update=user_update_data,
         user_ip="127.0.0.1",
-        updated_by=1
+        updated_by=1,
     )
     assert result == {"error": "Error to update: Unexpected error"}
 
@@ -420,6 +420,6 @@ async def test_update_user_and_client_no_result_found(db_session, user_update_da
         user_id=1,
         user_update=user_update_data,
         user_ip="127.0.0.1",
-        updated_by=1
+        updated_by=1,
     )
     assert result == {"error": "User not found."}

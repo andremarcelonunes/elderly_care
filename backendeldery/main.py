@@ -20,8 +20,8 @@ async def http_exception_handler(request, exc):
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = exc.errors()
     for error in errors:
-        if 'ctx' in error and 'error' in error['ctx']:
-            error['ctx']['error'] = str(error['ctx']['error'])
+        if "ctx" in error and "error" in error["ctx"]:
+            error["ctx"]["error"] = str(error["ctx"]["error"])
     return JSONResponse(
         status_code=400,
         content={"detail": errors, "body": exc.body},
@@ -38,7 +38,9 @@ async def pydantic_validation_exception_handler(request: Request, exc: Validatio
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request, exc):
-    error_message = str(exc) if isinstance(exc, Exception) else "An unexpected error occurred."
+    error_message = (
+        str(exc) if isinstance(exc, Exception) else "An unexpected error occurred."
+    )
     return JSONResponse(
         status_code=500,
         content={

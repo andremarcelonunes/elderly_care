@@ -1,5 +1,6 @@
 from database_nosql import emergency_collection
 
+
 async def setup_mongo():
     print("Configurando índices no MongoDB...")
     # Índice para buscar emergências por paciente
@@ -10,6 +11,8 @@ async def setup_mongo():
 
     print("Configuração concluída!")
 
+
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(setup_mongo())

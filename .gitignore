@@ -2,3 +2,4 @@
 /backendeldery/htmlcov/
 /.coverage
 /coverage.xml
+/.env

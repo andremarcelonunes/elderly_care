@@ -27,7 +27,9 @@ def test_http_exception_handler():
 def test_validation_exception_handler():
     @app.post("/validation_exception")
     async def validation_exception_route():
-        raise RequestValidationError([{"loc": ["body", "item"], "msg": "Invalid item", "type": "value_error"}])
+        raise RequestValidationError(
+            [{"loc": ["body", "item"], "msg": "Invalid item", "type": "value_error"}]
+        )
 
     response = client.post("/validation_exception", json={"item": "invalid"})
     assert response.status_code == 400
@@ -70,7 +72,7 @@ def test_generic_exception_handler():
     assert response.status_code == 500
     assert response.json() == {
         "detail": "An unexpected error occurred. Please try again later.",
-        "error": "Unexpected error"
+        "error": "Unexpected error",
     }
 
 
@@ -83,7 +85,9 @@ def test_generic_exception_handler():
 def test_request_validation_exception_handler():
     @app.post("/request_validation_exception")
     async def request_validation_exception_route():
-        raise RequestValidationError([{"loc": ["body", "item"], "msg": "Invalid item", "type": "value_error"}])
+        raise RequestValidationError(
+            [{"loc": ["body", "item"], "msg": "Invalid item", "type": "value_error"}]
+        )
 
     response = client.post("/request_validation_exception", json={"item": "invalid"})
     assert response.status_code == 400

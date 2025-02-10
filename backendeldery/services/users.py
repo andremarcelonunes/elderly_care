@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from backendeldery.crud.users import crud_specialized_user
+from backendeldery.crud.users import crud_specialized_user, crud_assisted
 from backendeldery.schemas import UserCreate, UserUpdate, UserResponse
 from backendeldery.validators.user_validator import UserValidator
 from fastapi import HTTPException
@@ -7,7 +7,9 @@ from fastapi import HTTPException
 
 class UserService:
     @staticmethod
-    async def register_client(db: Session, user_data: UserCreate, created_by: int, user_ip: str):
+    async def register_client(
+            db: Session, user_data: UserCreate, created_by: int, user_ip: str
+    ):
         """
         Registra um cliente no sistema.
         """
@@ -33,8 +35,7 @@ class UserService:
             return None
         except Exception as e:
             raise HTTPException(
-                status_code=500,
-                detail=f"Error in UserService: {str(e)}"
+                status_code=500, detail=f"Error in UserService: {str(e)}"
             )
 
     @staticmethod
@@ -49,8 +50,7 @@ class UserService:
             return None
         except Exception as e:
             raise HTTPException(
-                status_code=500,
-                detail=f"Error in UserService: {str(e)}"
+                status_code=500, detail=f"Error in UserService: {str(e)}"
             )
 
     @staticmethod
@@ -59,7 +59,7 @@ class UserService:
             user_id: int,
             user_update: UserUpdate,
             user_ip: str,
-            updated_by: int
+            updated_by: int,
     ):
         """
         Serviço que chama o CRUD para atualizar um usuário e seu cliente.
@@ -67,10 +67,9 @@ class UserService:
         try:
             # Chama o CRUD para fazer a atualização real no banco
             UserValidator.validate_user(db, user_update)
-            result = await crud_specialized_user.update_user_and_client(db,
-                                                                        user_id,
-                                                                        user_update,
-                                                                        user_ip, updated_by)
+            result = await crud_specialized_user.update_user_and_client(
+                db, user_id, user_update, user_ip, updated_by
+            )
             if "error" in result:
                 raise HTTPException(status_code=400, detail=result["error"])
 
@@ -86,7 +85,7 @@ class UserService:
                 phone=updated_user.phone,
                 role=updated_user.role,
                 active=updated_user.active,
-                client_data=updated_user.client_data.dict()  # Convert to dictionary
+                client_data=updated_user.client_data.dict(),  # Convert to dictionary
             )
 
         except HTTPException as e:
@@ -95,3 +94,40 @@ class UserService:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error on updating: {str(e)}")
+
+    @staticmethod
+    async def create_association_assisted(
+            db: Session,
+            subscriber_id: int,
+            assisted_id: int,
+            user_ip: str,
+            created_by: int,
+    ):
+        """
+        Creates an association in the client_association table and registers a new
+        client if the assisted is not the same as the subscriber.
+        """
+        try:
+            # Validate the assisted data
+            UserValidator.validate_association_assisted(db, subscriber_id, assisted_id)
+
+            # Create the association
+            return crud_assisted.create_association(
+                db, subscriber_id, assisted_id, created_by, user_ip
+            )
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    @staticmethod
+    def get_assisted_clients(db: Session, subscriber_id: int):
+        """
+        Retrieves the assisted clients for a given subscriber.
+        """
+        try:
+            return crud_assisted.get_assisted_clients_by_subscriber(db, subscriber_id)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

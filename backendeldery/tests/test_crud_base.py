@@ -29,10 +29,9 @@ def user_data():
             "city": "Gotham",
             "neighborhood": "Uptown",
             "code_address": "67890",
-            "state": "CA"
-        }
+            "state": "CA",
+        },
     )
-
 
 
 class MockUserCreate(BaseModel):
@@ -57,20 +56,23 @@ def test_get_user(db_session):
     crud_base = CRUDBase(User)
     mocked_user = User(id=1)
     db_session.query.return_value.filter.return_value.first.return_value = mocked_user
-    with patch("backendeldery.utils.obj_to_dict", return_value={
-        "id": 1,
-        "name": None,
-        "email": None,
-        "phone": None,
-        "role": None,
-        "active": None,
-        "password_hash": None,
-        "created_at": None,
-        "updated_at": None,
-        "created_by": None,
-        "updated_by": None,
-        "user_ip": None,
-    }) as mock_obj_to_dict:
+    with patch(
+        "backendeldery.utils.obj_to_dict",
+        return_value={
+            "id": 1,
+            "name": None,
+            "email": None,
+            "phone": None,
+            "role": None,
+            "active": None,
+            "password_hash": None,
+            "created_at": None,
+            "updated_at": None,
+            "created_by": None,
+            "updated_by": None,
+            "user_ip": None,
+        },
+    ) as mock_obj_to_dict:
         result = crud_base.get(db_session, 1)
         assert result == {
             "id": 1,
@@ -106,26 +108,27 @@ def test_create_user_with_client_data(db_session, user_data):
         "birthday": "1992-02-02",
     }
 
-    sqlalchemy_user_data = {
-        k: v for k, v in user_data_dict.items() if hasattr(User, k)
-    }
+    sqlalchemy_user_data = {k: v for k, v in user_data_dict.items() if hasattr(User, k)}
     mock_user_data = MockUserCreate(**sqlalchemy_user_data)
     db_session.query.return_value.filter.return_value.first.return_value = User(
         **sqlalchemy_user_data
     )
-    with patch("backendeldery.utils.obj_to_dict", return_value={
-        "id": 1,
-        "email": user_data.email,
-        "name": user_data.name,
-        "phone": user_data.phone,
-        "role": user_data.role,
-        "active": user_data.active,
-        "created_at": None,
-        "updated_at": None,
-        "created_by": None,
-        "updated_by": None,
-        "user_ip": None,
-    }):
+    with patch(
+        "backendeldery.utils.obj_to_dict",
+        return_value={
+            "id": 1,
+            "email": user_data.email,
+            "name": user_data.name,
+            "phone": user_data.phone,
+            "role": user_data.role,
+            "active": user_data.active,
+            "created_at": None,
+            "updated_at": None,
+            "created_by": None,
+            "updated_by": None,
+            "user_ip": None,
+        },
+    ):
         result = crud_base.create(db_session, mock_user_data)
         assert result["email"] == user_data.email
 

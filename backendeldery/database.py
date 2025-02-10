@@ -9,11 +9,14 @@ logging.basicConfig()
 logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 logging.getLogger("sqlalchemy.pool").setLevel(logging.INFO)
 
+
 class Database:
     def __init__(self, database_url):
         # Configura o SQLAlchemy
         self.engine = create_engine(database_url)
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        self.SessionLocal = sessionmaker(
+            autocommit=False, autoflush=False, bind=self.engine
+        )
         self.Base = declarative_base()
 
     def get_db(self):
@@ -33,6 +36,7 @@ class Database:
         with self.engine.connect() as connection:
             connection.execute(sql)
 
+
 db_instance = Database(settings.DATABASE_URL)
 
 # Alias para Base e SessionLocal, se necessário
@@ -44,7 +48,8 @@ SessionLocal = db_instance.SessionLocal
 engine = create_engine(settings.DATABASE_URL)
 
 
-function_sql = text("""
+function_sql = text(
+    """
 CREATE OR REPLACE FUNCTION elderly_care.log_audit()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -81,10 +86,12 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-""")
+"""
+)
 
 # SQL para remover a trigger (se existir)
-drop_trigger_sql = text("""
+drop_trigger_sql = text(
+    """
 DO $$
 BEGIN
     IF EXISTS (
@@ -98,9 +105,11 @@ BEGIN
     END IF;
 END;
 $$;
-""")
+"""
+)
 
-drop_function_sql = text("""
+drop_function_sql = text(
+    """
 DO $$
 BEGIN
     IF EXISTS (
@@ -113,16 +122,22 @@ BEGIN
     END IF;
 END;
 $$;
-""")
+"""
+)
 
 
-trigger_sql = text("""
+trigger_sql = text(
+    """
 CREATE TRIGGER audit_users
 AFTER INSERT OR UPDATE OR DELETE ON elderly_care.users
 FOR EACH ROW EXECUTE FUNCTION elderly_care.log_audit();
-""")
+"""
+)
 
-def apply_audit_triggers_to_all_tables(connection, schema_name="elderly_care", exclude_tables=None, pause_between=0.5):
+
+def apply_audit_triggers_to_all_tables(
+    connection, schema_name="elderly_care", exclude_tables=None, pause_between=0.5
+):
     """
     Aplica triggers de auditoria a todas as tabelas do esquema especificado, excluindo tabelas específicas.
 
@@ -136,18 +151,25 @@ def apply_audit_triggers_to_all_tables(connection, schema_name="elderly_care", e
 
     try:
         print(f"Fetching tables from schema '{schema_name}'...")
-        result = connection.execute(text("""
+        result = connection.execute(
+            text(
+                """
         SELECT table_name
         FROM information_schema.tables
         WHERE table_schema = :schema_name
-        """), {"schema_name": schema_name})
+        """
+            ),
+            {"schema_name": schema_name},
+        )
         tables = result.fetchall()
 
         if not tables:
             print(f"No tables found in schema '{schema_name}'.")
             return
 
-        print(f"Found {len(tables)} tables. Applying audit triggers (excluding {exclude_tables})...")
+        print(
+            f"Found {len(tables)} tables. Applying audit triggers (excluding {exclude_tables})..."
+        )
 
         for table in tables:
             table_name = table[0]
@@ -163,7 +185,9 @@ def apply_audit_triggers_to_all_tables(connection, schema_name="elderly_care", e
                 print(f"Creating audit trigger for table '{table_name}'...")
 
                 # Drop trigger se já existir
-                connection.execute(text("""
+                connection.execute(
+                    text(
+                        """
                 DO $$
                 BEGIN
                     IF EXISTS (
@@ -178,27 +202,36 @@ def apply_audit_triggers_to_all_tables(connection, schema_name="elderly_care", e
                     END IF;
                 END;
                 $$;
-                """), {
-                    "trigger_name": trigger_name,
-                    "schema_name": schema_name,
-                    "table_name": table_name
-                })
+                """
+                    ),
+                    {
+                        "trigger_name": trigger_name,
+                        "schema_name": schema_name,
+                        "table_name": table_name,
+                    },
+                )
 
                 # Criar a trigger
-                connection.execute(text("""
+                connection.execute(
+                    text(
+                        """
                 CREATE TRIGGER {trigger_name}
                 AFTER INSERT OR UPDATE OR DELETE ON {schema_name}.{table_name}
                 FOR EACH ROW EXECUTE FUNCTION {schema_name}.log_audit();
                 """.format(
-                    trigger_name=trigger_name,
-                    schema_name=schema_name,
-                    table_name=table_name
-                )))
+                            trigger_name=trigger_name,
+                            schema_name=schema_name,
+                            table_name=table_name,
+                        )
+                    )
+                )
 
                 print(f"Audit trigger for table '{table_name}' created successfully.")
 
             except Exception as table_error:
-                print(f"Error while creating trigger for table '{table_name}': {str(table_error)}")
+                print(
+                    f"Error while creating trigger for table '{table_name}': {str(table_error)}"
+                )
 
             # Pausa opcional para evitar sobrecarga
             if pause_between:
@@ -208,7 +241,9 @@ def apply_audit_triggers_to_all_tables(connection, schema_name="elderly_care", e
         print(f"An error occurred while applying audit triggers: {str(e)}")
 
 
-def drop_triggers_and_function(connection, schema_name="elderly_care", function_name="log_audit"):
+def drop_triggers_and_function(
+    connection, schema_name="elderly_care", function_name="log_audit"
+):
     """
     Remove todas as triggers que dependem da função especificada e, em seguida, exclui a função.
 
@@ -221,31 +256,46 @@ def drop_triggers_and_function(connection, schema_name="elderly_care", function_
         print("Fetching dependent triggers...")
 
         # Query para buscar todas as triggers dependentes da função
-        dependent_triggers = connection.execute(text(f"""
+        dependent_triggers = connection.execute(
+            text(
+                f"""
         SELECT t.tgname AS trigger_name, c.relname AS table_name
         FROM pg_trigger t
         JOIN pg_proc p ON t.tgfoid = p.oid
         JOIN pg_class c ON t.tgrelid = c.oid
         JOIN pg_namespace n ON c.relnamespace = n.oid
         WHERE p.proname = :function_name AND n.nspname = :schema_name;
-        """), {"function_name": function_name, "schema_name": schema_name}).fetchall()
+        """
+            ),
+            {"function_name": function_name, "schema_name": schema_name},
+        ).fetchall()
 
         # Drop cada trigger dependente
         for trigger in dependent_triggers:
             trigger_name = trigger[0]  # Primeiro elemento: nome da trigger
             table_name = trigger[1]  # Segundo elemento: nome da tabela
             print(f"Dropping trigger '{trigger_name}' on table '{table_name}'...")
-            connection.execute(text(f"""
+            connection.execute(
+                text(
+                    f"""
             DROP TRIGGER IF EXISTS {trigger_name} ON {schema_name}.{table_name};
-            """))
+            """
+                )
+            )
 
-        print(f"All triggers depending on function '{function_name}' dropped successfully.")
+        print(
+            f"All triggers depending on function '{function_name}' dropped successfully."
+        )
 
         # Drop a função com CASCADE
         print(f"Dropping function '{function_name}' with CASCADE...")
-        connection.execute(text(f"""
+        connection.execute(
+            text(
+                f"""
         DROP FUNCTION IF EXISTS {schema_name}.{function_name} CASCADE;
-        """))
+        """
+            )
+        )
         print(f"Function '{function_name}' dropped successfully.")
 
     except Exception as e:
@@ -254,15 +304,23 @@ def drop_triggers_and_function(connection, schema_name="elderly_care", function_
 
 def initialize_database():
     from models import Base  # Importa os modelos para registrar as tabelas
+
     with engine.begin() as connection:
         try:
+            # Executa o comando para criar o schema
+            connection.execute(text("CREATE SCHEMA IF NOT EXISTS elderly_care;"))
+            print("Comando CREATE SCHEMA executado.")
+
+            # Lista os schemas existentes para verificar se o schema 'elderly_care' foi criado
+
+            print("Schema 'elderly_care' criado ou já existe.")
 
             print("Dropping tables...")
             Base.metadata.drop_all(engine)
             print("Tables dropped successfully.")
 
             print("Creating tables...")
-            Base.metadata.create_all(bind=engine)
+            Base.metadata.create_all(bind=connection)
             print("Tables created successfully.")
 
             print("Dropping existing trigger (if exists)...")
@@ -281,14 +339,14 @@ def initialize_database():
             apply_audit_triggers_to_all_tables(
                 connection,
                 schema_name="elderly_care",
-                exclude_tables=["temp_audit_logs", "audit_logs"]
+                exclude_tables=["temp_audit_logs", "audit_logs"],
             )
             print("Audit triggers applied successfully.")
-
 
         except Exception as e:
             print("An error occurred during schema or table creation:", str(e))
             return
+
 
 # Configuração para rodar o script diretamente
 if __name__ == "__main__":
