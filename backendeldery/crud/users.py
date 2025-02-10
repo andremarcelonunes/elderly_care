@@ -54,12 +54,12 @@ class CRUDClient(CRUDBase):
         super().__init__(Client)
 
     def create(
-        self,
-        db: Session,
-        user: User,
-        obj_in: SubscriberCreate,
-        created_by: int,
-        user_ip: str,
+            self,
+            db: Session,
+            user: User,
+            obj_in: SubscriberCreate,
+            created_by: int,
+            user_ip: str,
     ):
         """
         Cria um cliente e registra informações de auditoria.
@@ -81,7 +81,7 @@ class CRUDSpecializedUser:
         self.crud_client = CRUDClient()
 
     def create_subscriber(
-        self, db: Session, user_data: dict, created_by: int, user_ip: str
+            self, db: Session, user_data: dict, created_by: int, user_ip: str
     ):
         """
         Cria um assinante e associa os dados do usuário em uma única transação.
@@ -176,11 +176,11 @@ class CRUDSpecializedUser:
 
     @staticmethod
     async def update_user_and_client(
-        db_session: Session,
-        user_id: int,
-        user_update: UserUpdate,
-        user_ip: str,
-        updated_by: int,
+            db_session: Session,
+            user_id: int,
+            user_update: UserUpdate,
+            user_ip: str,
+            updated_by: int,
     ):
         try:
             # Fetch the user and client in a single query
@@ -245,12 +245,12 @@ class CRUDAssisted:
         self.model = client_association
 
     def create_association(
-        self,
-        db: Session,
-        subscriber_id: int,
-        assisted_id: int,
-        created_by: int,
-        user_ip: str,
+            self,
+            db: Session,
+            subscriber_id: int,
+            assisted_id: int,
+            created_by: int,
+            user_ip: str,
     ):
         """
         Creates an association in the client_association table.
@@ -279,6 +279,16 @@ class CRUDAssisted:
         except Exception as e:
             db.rollback()
             raise RuntimeError(f"Error creating association: {str(e)}")
+
+    def get_assisted_clients_by_subscriber(self, db: Session, subscriber_id: int):
+        """
+        Retrieves the assisted clients for a given subscriber by first querying the User,
+        then accessing the assisted_clients property.
+        """
+        user = db.query(User).filter(User.id == subscriber_id).one_or_none()
+        if not user:
+            raise ValueError("User not found")
+        return user.assisted_clients
 
 
 crud_assisted = CRUDAssisted()

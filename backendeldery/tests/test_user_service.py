@@ -361,8 +361,8 @@ async def test_create_association_success(db_session, mocker, user_data):
         return_value={"message": "Association created"},
     )
 
-    result = await UserService.create_association(
-        db_session, subscriber_id=1, assisted_data=user_data, user_ip="127.0.0.1"
+    result = await UserService.create_association_assisted(
+        db_session, subscriber_id=1, assisted_id=2, created_by=1, user_ip="127.0.0.1"
     )
     assert result == {"message": "Association created"}
 
@@ -387,10 +387,8 @@ async def test_create_association_validation_error(db_session, mocker, user_data
 
     # Run the test expecting the HTTPException from the association validation
     with pytest.raises(HTTPException) as excinfo:
-        await UserService.create_association(
-            db_session, subscriber_id=1, assisted_data=user_data, user_ip="127.0.0.1"
+        await UserService.create_association_assisted(
+            db_session, subscriber_id=1, assisted_id=2, created_by=1, user_ip="127.0.0.1"
         )
     assert excinfo.value.status_code == 422
     assert excinfo.value.detail == "Validation error"
-
-

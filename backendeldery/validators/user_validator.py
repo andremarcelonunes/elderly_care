@@ -32,13 +32,13 @@ class UserValidator:
 
         if (
                 db.query(Client)
-                        .join(User)
-                        .filter(
+                .join(User)
+                .filter(
                     (Client.cpf == user_data["client_data"]["cpf"])
                     & (User.email == user_data["email"])
                     & (User.phone == user_data["phone"])
                 )
-                        .first()
+                .first()
         ):
             raise HTTPException(status_code=422, detail="The client already exists")
         if existing_user:
@@ -116,10 +116,25 @@ class UserValidator:
             .filter(client_association.c.assisted_id == assisted_id)
             .first()
         )
+        already_existed_association = (
+            db.query(client_association)
+            .filter(
+                client_association.c.assisted_id == assisted_id,
+                client_association.c.subscriber_id == subscriber_id
+            )
+            .first()
+        )
+
+        if already_existed_association:
+            raise HTTPException(
+                status_code=422,
+                detail="Assisted  has been  already associated with this subscriber",
+            )
+
         if existing_association:
             raise HTTPException(
                 status_code=422,
-                detail="Assisted user is already associated with another subscriber",
+                detail="Assisted  has been already associated with another subscriber",
             )
 
         # Check if the subscriber is already associated with the assisted user

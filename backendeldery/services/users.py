@@ -119,3 +119,15 @@ class UserService:
             raise e
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    @staticmethod
+    def get_assisted_clients(db: Session, subscriber_id: int):
+        """
+        Retrieves the assisted clients for a given subscriber.
+        """
+        try:
+            return crud_assisted.get_assisted_clients_by_subscriber(db, subscriber_id)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

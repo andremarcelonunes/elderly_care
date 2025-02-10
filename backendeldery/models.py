@@ -14,9 +14,31 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship, declarative_base
 
-
 Base = declarative_base()
 
+
+client_association = Table(
+    "client_association",
+    Base.metadata,
+    Column(
+        "subscriber_id",
+        Integer,
+        ForeignKey("elderly_care.clients.user_id"),
+        primary_key=True,
+    ),
+    Column(
+        "assisted_id",
+        Integer,
+        ForeignKey("elderly_care.clients.user_id"),
+        primary_key=True,
+    ),
+    Column("created_at", DateTime, default=func.now()),
+    Column("updated_at", DateTime, default=func.now(), onupdate=func.now()),
+    Column("created_by", Integer, nullable=False),
+    Column("updated_by", Integer, nullable=True),
+    Column("user_ip", String, nullable=True),
+    schema="elderly_care",
+)
 
 class User(Base):
     __tablename__ = "users"
@@ -39,6 +61,13 @@ class User(Base):
     client = relationship("Client", uselist=False, back_populates="user")
     patient_progress = relationship("PatientProgress", back_populates="attendant")
     tickets = relationship("Ticket", back_populates="attendant")  # Adicionado
+
+    @property
+    def assisted_clients(self):
+        """
+        Returns the assisted clients for the user via the related Client record.
+        """
+        return self.client.assisted_clients if self.client else []
 
 
 class Function(Base):
@@ -155,29 +184,16 @@ class Client(Base):
     appointments = relationship("Appointment", back_populates="client")
     record = relationship("Record", back_populates="client", uselist=False)
 
+    assisted_clients = relationship(
+        "Client",
+        secondary=client_association,
+        primaryjoin=(user_id == client_association.c.subscriber_id),
+        secondaryjoin=(user_id == client_association.c.assisted_id),
+        backref="subscribers"
+    )
 
-client_association = Table(
-    "client_association",
-    Base.metadata,
-    Column(
-        "subscriber_id",
-        Integer,
-        ForeignKey("elderly_care.clients.user_id"),
-        primary_key=True,
-    ),
-    Column(
-        "assisted_id",
-        Integer,
-        ForeignKey("elderly_care.clients.user_id"),
-        primary_key=True,
-    ),
-    Column("created_at", DateTime, default=func.now()),
-    Column("updated_at", DateTime, default=func.now(), onupdate=func.now()),
-    Column("created_by", Integer, nullable=False),
-    Column("updated_by", Integer, nullable=True),
-    Column("user_ip", String, nullable=True),
-    schema="elderly_care",
-)
+
+
 
 
 class ClientContact(Base):

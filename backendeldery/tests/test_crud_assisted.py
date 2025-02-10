@@ -18,9 +18,9 @@ def test_create_association_success(mocker):
     crud_assisted = CRUDAssisted()
 
     # Call the method
-    result = crud_assisted.create_association(
-        db_session, subscriber_id=1, assisted_id=2
-    )
+    result = crud_assisted.create_association(db_session, subscriber_id=1,
+                                              assisted_id=2, created_by=1,
+                                              user_ip="127.0.0.1")
 
     # Assert the result
     assert result == {"message": "Association created successfully"}
@@ -40,7 +40,10 @@ def test_create_association_user_not_found(mocker):
 
     # Call the method and assert ValueError is raised
     with pytest.raises(ValueError) as excinfo:
-        crud_assisted.create_association(db_session, subscriber_id=1, assisted_id=2)
+        crud_assisted.create_association(db_session, subscriber_id=1,
+                                         assisted_id=2,
+                                         created_by=1,
+                                         user_ip="127.0.0.1")
     assert str(excinfo.value) == "User not found"
     db_session.rollback.assert_called_once()
 
@@ -60,6 +63,10 @@ def test_create_association_exception(mocker):
 
     # Call the method and assert RuntimeError is raised
     with pytest.raises(RuntimeError) as excinfo:
-        crud_assisted.create_association(db_session, subscriber_id=1, assisted_id=2)
+        crud_assisted.create_association(db_session,
+                                         subscriber_id=1,
+                                         assisted_id=2,
+                                         created_by=1,
+                                         user_ip="127.0.0.1")
     assert str(excinfo.value) == "Error creating association: Unexpected error"
     db_session.rollback.assert_called_once()

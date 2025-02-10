@@ -7,7 +7,7 @@ from pydantic import (
     ConfigDict,
 )
 from typing import Optional, Literal, List, Annotated, Dict
-from datetime import date
+from datetime import date, datetime
 
 
 # noinspection PyMethodParameters
@@ -146,6 +146,18 @@ class UserResponse(BaseModel):
     phone: str
     active: bool
     client_data: Optional[Dict] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class AssistedResponse(BaseModel):
+    user_id: int
+    # We expect the Client model to have an attribute "user" (the related User instance)
+    # so we map the 'assisted' field to the "user" attribute using an alias.
+    assisted: UserResponse = Field(..., alias="user")
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 UserCreate.model_rebuild()
