@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, Body, HTTPException, Request, Header
 from typing import List
 from sqlalchemy.orm import Session
-from backendeldery.schemas import UserCreate, UserSearch, UserUpdate, UserResponse, AssistedCreate, AssistedResponse
+from backendeldery.schemas import (
+    UserCreate, UserSearch, UserUpdate, UserResponse,
+    AssistedCreate, AssistedResponse
+)
 from backendeldery.services.users import UserService
 from backendeldery.utils import get_db
 
@@ -181,7 +184,10 @@ async def register_assisted(
         raise HTTPException(
             status_code=500, detail=f"Error on register assisted: {str(e)}"
         )
-@router.get("/users/subscribers/{subscriber_id}/assisted", response_model=List[AssistedResponse])
+
+
+@router.get("/users/subscribers/{subscriber_id}/assisted",
+            response_model=List[AssistedResponse])
 async def consult_assisted(
     subscriber_id: int,
     db: Session = Depends(get_db),

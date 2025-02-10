@@ -91,14 +91,6 @@ class CRUDSpecializedUser:
                 db=db, obj_in=user_data, created_by=created_by, user_ip=user_ip
             )
 
-            client = self.crud_client.create(
-                db=db,
-                user=user,
-                created_by=created_by,
-                user_ip=user_ip,
-                obj_in=SubscriberCreate(**user_data["client_data"]),
-            )
-
             db.commit()  # Commit the transaction
 
             if not user:
@@ -280,6 +272,7 @@ class CRUDAssisted:
             db.rollback()
             raise RuntimeError(f"Error creating association: {str(e)}")
 
+    @staticmethod
     def get_assisted_clients_by_subscriber(self, db: Session, subscriber_id: int):
         """
         Retrieves the assisted clients for a given subscriber by first querying the User,

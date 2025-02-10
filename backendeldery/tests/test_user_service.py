@@ -347,19 +347,9 @@ async def test_update_subscriber_user_not_found_after_update(
 
 
 @pytest.mark.asyncio
-async def test_create_association_success(db_session, mocker, user_data):
-    mocker.patch.object(
-        UserValidator, "validate_association_assisted", return_value=None
-    )
-    mocker.patch.object(UserValidator, "validate_subscriber", return_value=None)
-    mocker.patch.object(
-        crud_specialized_user, "create_subscriber", return_value={"id": 2}
-    )
-    mocker.patch.object(
-        crud_assisted,
-        "create_association",
-        return_value={"message": "Association created"},
-    )
+async def test_create_association_assisted_success(db_session, mocker):
+    mocker.patch.object(UserValidator, "validate_association_assisted", return_value=None)
+    mocker.patch.object(crud_assisted, "create_association", return_value={"message": "Association created"})
 
     result = await UserService.create_association_assisted(
         db_session, subscriber_id=1, assisted_id=2, created_by=1, user_ip="127.0.0.1"
@@ -368,27 +358,46 @@ async def test_create_association_success(db_session, mocker, user_data):
 
 
 @pytest.mark.asyncio
-async def test_create_association_validation_error(db_session, mocker, user_data):
-    # Ensure validate_subscriber doesn't block the test
-    mocker.patch.object(UserValidator, "validate_subscriber", return_value=None)
-
-    # Ensure create_subscriber returns a dummy client so that we get to the next step
-    fake_client = {"id": 123}
-    mocker.patch.object(
-        crud_specialized_user, "create_subscriber", return_value=fake_client
-    )
-
-    # Patch the validator method where it is *used* (adjust the path if needed)
+async def test_create_association_assisted_validation_error(db_session, mocker):
     mocker.patch.object(
         UserValidator,
         "validate_association_assisted",
         side_effect=HTTPException(status_code=422, detail="Validation error"),
     )
 
-    # Run the test expecting the HTTPException from the association validation
     with pytest.raises(HTTPException) as excinfo:
         await UserService.create_association_assisted(
             db_session, subscriber_id=1, assisted_id=2, created_by=1, user_ip="127.0.0.1"
         )
     assert excinfo.value.status_code == 422
     assert excinfo.value.detail == "Validation error"
+
+
+@pytest.mark.asyncio
+async def test_create_association_assisted_unexpected_error(db_session, mocker):
+    mocker.patch.object(UserValidator, "validate_association_assisted", return_value=None)
+    mocker.patch.object(
+        crud_assisted,
+        "create_association",
+        side_effect=Exception("Unexpected error"),
+    )
+
+    with pytest.raises(HTTPException) as excinfo:
+        await UserService.create_association_assisted(
+            db_session, subscriber_id=1, assisted_id=2, created_by=1, user_ip="127.0.0.1"
+        )
+    assert excinfo.value.status_code == 500
+    assert "Unexpected error" in excinfo.value.detail
+
+
+def test_get_assisted_clients_value_error(db_session, mocker):
+    mocker.patch.object(
+        crud_assisted,
+        "get_assisted_clients_by_subscriber",
+        side_effect=ValueError("No assisted clients found"),
+    )
+
+    with pytest.raises(HTTPException) as excinfo:
+        UserService.get_assisted_clients(db_session, subscriber_id=1)
+    assert excinfo.value.status_code == 404
+    assert excinfo.value.detail == "No assisted clients found"

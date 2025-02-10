@@ -16,7 +16,6 @@ from sqlalchemy.orm import relationship, declarative_base
 
 Base = declarative_base()
 
-
 client_association = Table(
     "client_association",
     Base.metadata,
@@ -39,6 +38,7 @@ client_association = Table(
     Column("user_ip", String, nullable=True),
     schema="elderly_care",
 )
+
 
 class User(Base):
     __tablename__ = "users"
@@ -191,9 +191,6 @@ class Client(Base):
         secondaryjoin=(user_id == client_association.c.assisted_id),
         backref="subscribers"
     )
-
-
-
 
 
 class ClientContact(Base):

@@ -312,11 +312,6 @@ def initialize_database():
             print("Comando CREATE SCHEMA executado.")
 
             # Lista os schemas existentes para verificar se o schema 'elderly_care' foi criado
-            result = connection.execute(
-                text("SELECT schema_name FROM information_schema.schemata;")
-            )
-            schemas = [row[0] for row in result]
-            print("Schemas existentes:", schemas)
 
             print("Schema 'elderly_care' criado ou já existe.")
 

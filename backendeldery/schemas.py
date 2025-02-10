@@ -149,6 +149,7 @@ class UserResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class AssistedResponse(BaseModel):
     user_id: int
     # We expect the Client model to have an attribute "user" (the related User instance)
