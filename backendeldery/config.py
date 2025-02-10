@@ -14,4 +14,5 @@ class Settings(BaseSettings):
         extra="ignore"  # Ignora variáveis extras que não estejam declaradas
     )
 
+
 settings = Settings()
