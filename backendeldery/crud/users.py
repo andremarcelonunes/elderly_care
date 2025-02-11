@@ -4,7 +4,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy import update
 from fastapi import HTTPException
 from backendeldery.utils import hash_password
-from backendeldery.models import User, Client, client_association, ClientContact
+from backendeldery.models import User, Client, client_association, client_contact_association
 from backendeldery.schemas import (
     UserCreate,
     SubscriberCreate,
@@ -294,18 +294,17 @@ class CRUDAssisted:
 class CRUDContact:
     def __init__(self, user_crud: CRUDUser):
         self.user_crud = user_crud
-        self.model = ClientContact
+        self.model = client_contact_association
 
     def create_contact(
             self,
             db: Session,
-            client_id: int,
             user_data: dict,
             created_by: int,
             user_ip: str,
     ):
         """
-        Creates a contact associate to client.
+        Creates a contact
         """
         try:
             # Fetch the user to check the role
@@ -315,16 +314,38 @@ class CRUDContact:
             if not user:
                 raise ValueError("User not found")
 
+            db.commit()
+            return {"message": f"Contact has been created"}
+
+        except ValueError as e:
+            db.rollback()
+            raise e
+        except Exception as e:
+            db.rollback()
+            raise RuntimeError(f"Error creating contact: {str(e)}")
+
+    def create_contact_association(
+            self,
+            db: Session,
+            client_id: int,
+            user_contact_id: int,
+            created_by: int,
+            user_ip: str,
+    ):
+        """
+       Associate a contact  to some client.
+        """
+        try:
             # Create the association
-            contact = ClientContact(
+            self.model.insert().values(
                 user_client_id=client_id,
-                user_contact_id=user.id,
+                user_contact_id=user_contact_id,
                 created_by=created_by,
+                updated_by=created_by,
                 user_ip=user_ip,
             )
 
             # Add the instance to the session.
-            db.add(contact)
             db.commit()
             return {"message": "Contact has been associated"}
 

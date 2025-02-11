@@ -19,7 +19,6 @@ class UserCreate(BaseModel):
     active: Optional[bool] = True
     password: str = Field(..., min_length=8)  # Validação básica de tamanho mínimo
     client_data: Optional["SubscriberCreate"] = None
-    client_ids: Optional[List[int]] = None  # Lista de IDs de clientes
     attendant_data: Optional["AttendantCreate"] = None
 
     @model_validator(mode="after")
@@ -29,11 +28,6 @@ class UserCreate(BaseModel):
                 raise ValueError("client_data is required when role is 'subscriber'.")
             if model.email is None:
                 raise ValueError("email is required when role is 'subscriber'.")
-        elif model.role == "contact":
-            if not model.client_ids:
-                raise ValueError(
-                    "client_ids (list of client IDs) is required when role is 'contact'."
-                )
         elif model.role == "attendant":
             if model.attendant_data is None:
                 raise ValueError("attendant_data is required when role is 'attendant'.")

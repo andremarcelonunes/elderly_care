@@ -5,7 +5,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from backendeldery.crud.users import crud_specialized_user, crud_assisted
+from backendeldery.crud.users import crud_specialized_user, crud_assisted, crud_contact
 from backendeldery.schemas import UserCreate, UserInfo, SubscriberInfo, UserUpdate
 from backendeldery.services.users import UserService
 from backendeldery.validators.user_validator import UserValidator
@@ -401,3 +401,42 @@ def test_get_assisted_clients_value_error(db_session, mocker):
         UserService.get_assisted_clients(db_session, subscriber_id=1)
     assert excinfo.value.status_code == 404
     assert excinfo.value.detail == "No assisted clients found"
+
+
+@pytest.mark.asyncio
+async def test_register_contact_success(db_session, mocker, user_data):
+    mocker.patch.object(UserValidator, "validate_user", return_value=None)
+    mocker.patch.object(crud_contact, "create_contact", return_value={"message": "Contact has been associated"})
+
+    result = await UserService.register_contact(
+        db_session, user_data=user_data, created_by=1, user_ip="127.0.0.1"
+    )
+    assert result == {"message": "Contact has been associated"}
+
+
+@pytest.mark.asyncio
+async def test_register_contact_validation_error(db_session, mocker, user_data):
+    mocker.patch.object(UserValidator, "validate_user", side_effect=HTTPException(status_code=422, detail="Validation error"))
+    mocker.patch.object(crud_contact, "create_contact", return_value=None)
+
+    with pytest.raises(HTTPException) as excinfo:
+        await UserService.register_contact(
+            db_session, user_data=user_data, created_by=1, user_ip="127.0.0.1"
+        )
+    assert excinfo.value.status_code == 422
+    assert excinfo.value.detail == "Validation error"
+
+
+@pytest.mark.asyncio
+async def test_register_contact_unexpected_error(db_session, mocker, user_data):
+    mocker.patch.object(UserValidator, "validate_user", return_value=None)
+    mocker.patch.object(crud_contact, "create_contact", side_effect=Exception("Unexpected error"))
+
+    with pytest.raises(HTTPException) as excinfo:
+        await UserService.register_contact(
+            db_session, user_data=user_data, created_by=1, user_ip="127.0.0.1"
+        )
+    assert excinfo.value.status_code == 500
+    assert "Unexpected error" in excinfo.value.detail
+
+

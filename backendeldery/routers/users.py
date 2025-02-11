@@ -194,3 +194,40 @@ async def consult_assisted(
 ):
     assisteds = UserService.get_assisted_clients(db, subscriber_id)
     return [AssistedResponse.from_orm(client) for client in assisteds]
+
+
+@router.post("/users/register/contact/")
+async def register_contact(
+    user: UserCreate = Body(
+        examples=[
+            {
+                "name": "Jane Doe",
+                "email": "jane.doe@example.com",
+                "phone": "+987654321",
+                "role": "contact",
+                "password": "Strong@123",
+                "active": True,
+            }
+        ]
+    ),
+    db: Session = Depends(get_db),
+    request: Request = None,
+    x_user_id: int = Header(...),
+):
+    """
+    Endpoint to register a new contact.
+    """
+    try:
+        client_ip = request.client.host if request else "unknown"
+        return await UserService.register_contact(
+            db=db,
+            user_data=user,
+            created_by=x_user_id,
+            user_ip=client_ip,
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error on creating contact: {str(e)}"
+        )

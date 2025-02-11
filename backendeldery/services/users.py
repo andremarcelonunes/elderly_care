@@ -135,27 +135,32 @@ class UserService:
     @staticmethod
     async def register_contact(
             db: Session,
-            client_id: int,
-            user_data: dict,  # Alternatively, you could use a dedicated Pydantic schema
+            user_data: UserCreate,
             created_by: int,
             user_ip: str,
     ):
         """
-        Registra um contato associado a um cliente.
-        O processo cria primeiro um usuário via CRUD de usuário e em seguida associa esse usuário
-        como contato ao cliente especificado.
+        Registers a contact associated with a client.
+        The process first creates a user via the user CRUD and then associates that user
+        as a contact for the specified client.
         """
         try:
-            # Optionally, validate the contact data (for instance, if you add a specific validator)
-            # UserValidator.validate_contact(db, user_data)
-            return crud_contact.create_contact(
+            # Ensure user data is properly serialized
+            contact_data = user_data.model_dump()
+            UserValidator.validate_user(db, user_data)
+            # Call the CRUD method to register the contact
+            result = crud_contact.create_contact(
                 db=db,
-                client_id=client_id,
-                user_data=user_data,
+                user_data=contact_data,
                 created_by=created_by,
                 user_ip=user_ip,
             )
+
+            return result
+
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         except HTTPException as e:
-            raise e
+            raise e  # Re-raise FastAPI exceptions
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

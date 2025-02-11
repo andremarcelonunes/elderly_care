@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from backendeldery.models import User, Client, client_association
+from backendeldery.models import User, Client, client_association, client_contact_association
 from backendeldery.schemas import UserCreate, SubscriberCreate
 
 
@@ -148,3 +148,43 @@ class UserValidator:
         )
         if association:
             raise HTTPException(status_code=422, detail="Association already exists")
+
+    def validate_association_contact(
+            db: Session, client_id: int, contact_id: int
+    ):
+        """
+        Validates whether a contact can be associated with a client.
+        """
+        # Check if the client exists
+        client = db.query(Client).filter(Client.user_id == client_id).one_or_none()
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+
+        # Check if the contact exists
+        contact = db.query(User).filter(User.id == contact_id).one_or_none()
+        if not contact:
+            raise HTTPException(status_code=404, detail="Contact not found")
+
+        # Prevent clients from adding themselves as contacts
+        if client.user_id == contact.id:
+            raise HTTPException(
+                status_code=403, detail="A client cannot be their own contact"
+            )
+
+        # Check if this contact is already associated with this client
+        already_associated = (
+            db.query(client_contact_association)
+            .filter(
+                client_contact_association.c.user_client_id == client_id,
+                client_contact_association.c.user_contact_id == contact_id,
+            )
+            .first()
+        )
+
+        if already_associated:
+            raise HTTPException(
+                status_code=422,
+                detail="This contact is already associated with the client",
+            )
+
+        # Check if the contact is already associated with another client
