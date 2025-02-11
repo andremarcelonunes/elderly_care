@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from backendeldery.crud.users import crud_specialized_user, crud_assisted
+from backendeldery.crud.users import crud_specialized_user, crud_assisted, crud_contact
 from backendeldery.schemas import UserCreate, UserUpdate, UserResponse
 from backendeldery.validators.user_validator import UserValidator
 from fastapi import HTTPException
@@ -129,5 +129,33 @@ class UserService:
             return crud_assisted.get_assisted_clients_by_subscriber(db, subscriber_id)
         except ValueError as e:
             raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    @staticmethod
+    async def register_contact(
+            db: Session,
+            client_id: int,
+            user_data: dict,  # Alternatively, you could use a dedicated Pydantic schema
+            created_by: int,
+            user_ip: str,
+    ):
+        """
+        Registra um contato associado a um cliente.
+        O processo cria primeiro um usuário via CRUD de usuário e em seguida associa esse usuário
+        como contato ao cliente especificado.
+        """
+        try:
+            # Optionally, validate the contact data (for instance, if you add a specific validator)
+            # UserValidator.validate_contact(db, user_data)
+            return crud_contact.create_contact(
+                db=db,
+                client_id=client_id,
+                user_data=user_data,
+                created_by=created_by,
+                user_ip=user_ip,
+            )
+        except HTTPException as e:
+            raise e
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

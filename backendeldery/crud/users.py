@@ -4,7 +4,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy import update
 from fastapi import HTTPException
 from backendeldery.utils import hash_password
-from backendeldery.models import User, Client, client_association
+from backendeldery.models import User, Client, client_association, ClientContact
 from backendeldery.schemas import (
     UserCreate,
     SubscriberCreate,
@@ -291,7 +291,53 @@ class CRUDAssisted:
         return user.assisted_clients
 
 
+class CRUDContact:
+    def __init__(self, user_crud: CRUDUser):
+        self.user_crud = user_crud
+        self.model = ClientContact
+
+    def create_contact(
+            self,
+            db: Session,
+            client_id: int,
+            user_data: dict,
+            created_by: int,
+            user_ip: str,
+    ):
+        """
+        Creates a contact associate to client.
+        """
+        try:
+            # Fetch the user to check the role
+            user = self.user_crud.create(
+                db=db, obj_in=user_data, created_by=created_by, user_ip=user_ip
+            )
+            if not user:
+                raise ValueError("User not found")
+
+            # Create the association
+            contact = ClientContact(
+                user_client_id=client_id,
+                user_contact_id=user.id,
+                created_by=created_by,
+                user_ip=user_ip,
+            )
+
+            # Add the instance to the session.
+            db.add(contact)
+            db.commit()
+            return {"message": "Contact has been associated"}
+
+        except ValueError as e:
+            db.rollback()
+            raise e
+        except Exception as e:
+            db.rollback()
+            raise RuntimeError(f"Error creating association between contact and client: {str(e)}")
+
+
 crud_assisted = CRUDAssisted()
 crud_specialized_user = CRUDSpecializedUser()
 crud_user = CRUDUser()
+crud_contact = CRUDContact(user_crud=crud_user)
 crud_client = CRUDClient()

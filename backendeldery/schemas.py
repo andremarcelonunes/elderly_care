@@ -75,12 +75,10 @@ class UserSearch(BaseModel):
     ] = None
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "email": "john.doe@example.com",
-                # or
                 "phone": "+123456789",
-                # or
                 "cpf": "123.456.789-00",
             }
         }
