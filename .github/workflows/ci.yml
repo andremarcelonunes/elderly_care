@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Set environment variables and Install Dependecies
+      - name: Set environment variables and Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install poetry
@@ -45,20 +45,20 @@ jobs:
 
       - name: Run Tests
         env:
-          DATABASE_URL: "sqlite:///./test.db"  # Use a valid SQLAlchemy URL
+          DATABASE_URL: "sqlite:///./test.db"
           MONGO_URI: "mock_mongo_uri"
           MONGO_DB: "mock_mongo_db"
         run: |
           poetry run pytest -v --cov=./ --cov-report xml --cov-config=.coveragerc
-        continue-on-error: true
 
       - name: Check Test Results
         if: failure()
         run: |
-          echo "Tests failed. Please check the logs for details."
+          echo "❌ Tests failed. Stopping CI."
           exit 1
 
       - name: Upload coverage to DeepSource
+        if: success()
         env:
           DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
         run: |
