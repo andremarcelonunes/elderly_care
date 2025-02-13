@@ -74,6 +74,9 @@ Abra o terminal (ou PowerShell, no Windows) e execute:
 git clone https://seu-repositorio.git
 cd nome-do-repositorio
 ```
+Muitas IDE tem suporte para clonar o repositório, então você pode clonar diretamente da sua IDE.
+
+
 
 ### 2. Crie o Arquivo `.env`
 
@@ -91,8 +94,8 @@ MONGO_DB=elderly_care
 
 ### 3. Execute o Docker Compose
 
-O arquivo docker-compose.yml deve estar configurado para utilizar as variáveis do arquivo .env. Exemplo:
-
+O arquivo docker-compose.yml deve estar configurado para utilizar as variáveis do arquivo .env:
+Tá tudo pronto, acho que você não precisar se preocupar com isso, mas se quiser dar uma olhada, segue o exemplo:
 ```yaml
 
 version: '3.8'
@@ -130,7 +133,7 @@ volumes:
   postgres_data:
 ```
 
-### 4. Para executar o Docker Compose, utilize o comando:
+### 4. Para executar o Docker Compose, utilize o comando (se for Mac ou Linux deve rodar sem problemas):
 
 ```bash
 docker-compose up --build
@@ -140,6 +143,27 @@ Isso fará com que:
 	•	O container da aplicação FastAPI seja construído e iniciado.
 
 A aplicação ficará acessível em http://localhost:8000.
+
+<span style="color: red; font-size: larger;">**Atenção para usuários windows!!!**</span>
+Para rodar esse projeto no windows via  docker. Você vai precisar
+1. Executar o powershell como administrador e rodar o comando abaixo para instalara o chocolate:
+```bash
+Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))  
+
+```
+2 - Instalar dos2unix pelo powershell como administrador:
+```bash
+install dos2unix -y
+```
+3 - Já no terminal de sua IDE (feche e abra novamente, prefiro executar como administrador), Rodar na raiz do projeto o comando abaixo:
+```bash
+dos2unix backendeldery/start.sh
+```
+5 - Rodar o comando abaixo para subir o container:	
+```bash
+docker-compose up --build
+```
+
 
 ### 5. Documentação da API
 ```
@@ -158,5 +182,4 @@ Para Usuários Mac/Linux
 Instale o Docker Desktop para Mac ou utilize o Docker Engine.
 	•	Execução Local:
 Certifique-se de que o Python 3.12 e o Poetry estejam instalados e utilize o terminal para os comandos.
-
 
