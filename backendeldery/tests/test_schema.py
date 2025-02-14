@@ -1,6 +1,6 @@
 import pytest
 from pydantic import BaseModel, ValidationError
-from backendeldery.schemas import UserUpdate, ClientUpdate
+from backendeldery.schemas import UserUpdate, ClientUpdate, SubscriberCreate, UserCreate
 
 
 def test_check_extra_fields_user():
@@ -57,3 +57,62 @@ def test_check_extra_fields_client():
     with pytest.raises(ValidationError) as exc_info:
         ClientUpdate(**invalid_data)
     assert "this change is not authorized" in str(exc_info.value)
+
+
+def test_user_create_subscriber_missing_client_data():
+    with pytest.raises(ValidationError) as exc_info:
+        UserCreate(
+            name="John Doe",
+            role="subscriber",
+            phone="+123456789",
+            email="john.doe@example.com",
+            password="password123"
+        )
+    assert "client_data is required when role is 'subscriber'" in str(exc_info.value)
+
+
+def test_user_create_subscriber_missing_email():
+    with pytest.raises(ValidationError) as exc_info:
+        UserCreate(
+            name="John Doe",
+            role="subscriber",
+            phone="+123456789",
+            client_data=SubscriberCreate(
+                cpf="12345678900",
+                birthday="2000-01-01"
+            ),
+            password="password123"
+        )
+    assert "email is required when role is 'subscriber'" in str(exc_info.value)
+
+
+def test_user_create_subscriber_missing_password():
+    with pytest.raises(ValidationError) as exc_info:
+        UserCreate(
+            name="John Doe",
+            role="subscriber",
+            phone="+123456789",
+            email="john.doe@example.com",
+            client_data=SubscriberCreate(
+                cpf="12345678900",
+                birthday="2000-01-01"
+            )
+        )
+    assert "password is required when role is 'subscriber'" in str(exc_info.value)
+
+
+def test_user_create_invalid_phone():
+    with pytest.raises(ValidationError) as exc_info:
+        UserCreate(
+            name="John Doe",
+            role="subscriber",
+            phone="invalid_phone",
+            email="john.doe@example.com",
+            password="password123",
+            client_data=SubscriberCreate(
+                cpf="12345678900",
+                birthday="2000-01-01"
+            )
+        )
+    # Adjusted the expected substring to match the actual error message.
+    assert "String should match pattern" in str(exc_info.value)

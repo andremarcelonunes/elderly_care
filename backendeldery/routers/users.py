@@ -68,8 +68,9 @@ async def search_user(
         db: Session = Depends(get_db),
 ):
     """
-    Endpoint to search all users by email, phone, or CPF. Only one criteria is allowed. Remember
-    for assisted clients or subscribers you can use CPF, for contacts you can use email or phone.
+    Endpoint to search all users by email, phone, or CPF. Only one
+    criteria is allowed. Remember for assisted clients or subscribers
+    you can use CPF, for contacts you can use email or phone.
     For assiteds and contacts, email are optional.
     """
     try:
@@ -317,8 +318,9 @@ async def delete_contact_association(
 ):
     """
     Endpoint to delete the association between a given client and contact.
-    Before deletion, the association row is updated with the user IP and x_user_id for auditing.
-    If the contact is not associated with any other client, the contact record is also deleted.
+    Before deletion, the association row is updated with the user IP and
+    x_user_id for auditing. If the contact is not associated with any
+     other client, the contact record is also deleted.
     """
     try:
         client_ip = request.client.host if request else "unknown"
@@ -328,5 +330,5 @@ async def delete_contact_association(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error deleting contact association: {str(e)}")
-
+        raise HTTPException(status_code=500,
+                            detail=f"Error deleting contact association: {str(e)}")

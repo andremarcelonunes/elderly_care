@@ -12,9 +12,11 @@ from backendeldery.schemas import UserCreate, SubscriberCreate
 class UserValidator:
     @staticmethod
     def validate_user(db: Session, user_data: UserCreate):
-        if user_data.email and db.query(User).filter(User.email == user_data.email).first():
+        if (user_data.email and
+                db.query(User).filter(User.email == user_data.email).first()):
             raise HTTPException(status_code=422, detail="Email already exists")
-        if user_data.phone and db.query(User).filter(User.phone == user_data.phone).first():
+        if (user_data.phone and
+                db.query(User).filter(User.phone == user_data.phone).first()):
             raise HTTPException(status_code=422, detail="Phone already exists")
 
     @staticmethod
@@ -218,5 +220,6 @@ class UserValidator:
         # Check if this client_id is equal to x_user_id
         if client_id != x_user_id:
             raise HTTPException(
-                status_code=403, detail="You are not authorized to delete this association"
+                status_code=403,
+                detail="You are not authorized to delete this association"
             )

@@ -643,3 +643,62 @@ async def test_delete_contact_relation_not_exists(db_session, mocker):
         await UserService.delete_contact_relation(db_session, client_id=1, contact_id=2, user_ip="127.0.0.1", x_user_id=1)
     assert excinfo.value.status_code == 404
     assert excinfo.value.detail == "Association not found"
+
+
+@pytest.mark.asyncio
+async def test_delete_contact_relation_success(db_session, mocker):
+    mocker.patch.object(UserValidator, "validate_deletion_contact_association", return_value=None)
+    mocker.patch.object(crud_contact, "delete_contact_relation", return_value=None)
+
+    result = await UserService.delete_contact_relation(
+        db_session, client_id=1, contact_id=2, user_ip="127.0.0.1", x_user_id=1
+    )
+    assert result == {"message": "Contact association deleted successfully"}
+
+
+@pytest.mark.asyncio
+async def test_delete_contact_relation_not_found(db_session, mocker):
+    mocker.patch.object(UserValidator, "validate_deletion_contact_association", return_value=None)
+    mocker.patch.object(crud_contact, "delete_contact_relation", side_effect=HTTPException(status_code=404, detail="Association not found"))
+
+    with pytest.raises(HTTPException) as excinfo:
+        await UserService.delete_contact_relation(
+            db_session, client_id=1, contact_id=2, user_ip="127.0.0.1", x_user_id=1
+        )
+    assert excinfo.value.status_code == 404
+    assert excinfo.value.detail == "Association not found"
+
+
+@pytest.mark.asyncio
+async def test_delete_contact_relation_unauthorized(db_session, mocker):
+    mocker.patch.object(UserValidator, "validate_deletion_contact_association", side_effect=HTTPException(status_code=403, detail="You are not authorized to delete this association"))
+
+    with pytest.raises(HTTPException) as excinfo:
+        await UserService.delete_contact_relation(
+            db_session, client_id=1, contact_id=2, user_ip="127.0.0.1", x_user_id=3
+        )
+    assert excinfo.value.status_code == 403
+    assert excinfo.value.detail == "You are not authorized to delete this association"
+
+
+@pytest.mark.asyncio
+async def test_delete_contact_relation_client_not_found(db_session, mocker):
+    mocker.patch.object(UserValidator, "validate_deletion_contact_association", side_effect=HTTPException(status_code=404, detail="Client not found"))
+
+    with pytest.raises(HTTPException) as excinfo:
+        await UserService.delete_contact_relation(
+            db_session, client_id=1, contact_id=2, user_ip="127.0.0.1", x_user_id=1
+        )
+    assert excinfo.value.status_code == 404
+    assert excinfo.value.detail == "Client not found"
+
+
+@pytest.mark.asyncio
+async def test_create_contact_association_success(db_session, mocker):
+    mocker.patch.object(UserValidator, "validate_association_contact", return_value=None)
+    mocker.patch.object(crud_contact, "create_contact_association", return_value={"message": "Association created"})
+
+    result = await UserService.create_contact_association(
+        db_session, client_id=1, user_contact_id=2, created_by=1, user_ip="127.0.0.1"
+    )
+    assert result == {"message": "Association created"}

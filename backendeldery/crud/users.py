@@ -368,8 +368,9 @@ class CRUDContact:
 
     async def get_clients_by_contact(self, db: Session, contact_id: int):
         """
-        Retrieves all clients associated with the given contact (User) from the association table,
-        excluding the contact's own client record (if any).
+        Retrieves all clients associated with the given contact (User)
+        from the association table, excluding the contact's own client
+        record (if any).
         """
 
         # Retrieve the user record (contact)
@@ -422,14 +423,16 @@ class CRUDContact:
         return None
 
     async def delete_contact_relation(self, db: Session, client_id: int,
-                                      contact_id: int, user_ip: str, x_user_id: int):
+                                      contact_id: int, user_ip: str,
+                                      x_user_id: int):
         """
-        Updates the association with audit data (if needed) and then deletes the association
-        between the specified client and contact. If the contact is not associated with any other
-        client, deletes the contact record too.
+        Updates the association with audit data (if needed) and then
+        deletes the association between the specified client and contact.
+        If the contact is not associated with any other client, deletes
+        the contact record too.
         """
         # (Optional) Update the association row with audit info.
-        updated_rows = (
+        _unused_updated_rows = (
             db.query(client_contact_association)
             .filter(
                 client_contact_association.c.user_client_id == client_id,

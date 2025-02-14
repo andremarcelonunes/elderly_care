@@ -3,6 +3,8 @@ from http.client import HTTPException
 import pytest
 from sqlalchemy.orm import Session
 from unittest.mock import Mock, patch
+
+import backendeldery.crud.users
 from backendeldery.crud.users import CRUDContact, CRUDUser
 from backendeldery.models import User
 from backendeldery.crud import crud_user
@@ -211,6 +213,17 @@ async def test_delete_contact_association_not_exists(db_session, crud_contact):
     deleted_count = await crud_contact.delete_contact_association(db_session, client_id=1, contact_id=2)
     assert deleted_count == 0
     db_session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_delete_contact_relation_not_exists(db_session, mocker, crud_contact):
+    mocker.patch.object(backendeldery.crud.users.crud_contact, 'delete_contact_association', return_value=0)
+
+    with pytest.raises(ValueError) as excinfo:
+        await crud_contact.delete_contact_relation(
+            db_session, client_id=1, contact_id=2, user_ip="127.0.0.1", x_user_id=1
+        )
+    assert str(excinfo.value) == "Association not found"
 
 
 @pytest.mark.asyncio

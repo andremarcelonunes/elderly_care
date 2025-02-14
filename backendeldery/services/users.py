@@ -237,11 +237,14 @@ class UserService:
             raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
     @staticmethod
-    async def delete_contact_relation(db: Session, client_id: int, contact_id: int, user_ip: str, x_user_id: int):
+    async def delete_contact_relation(db: Session, client_id: int,
+                                      contact_id: int, user_ip: str, x_user_id: int):
         """
         Deletes the association between a given client and contact.
-        Before deletion, updates the association row with the audit data (updated_by and user_ip).
-        If the contact is no longer associated with any client, it is deleted.
+        Before deletion, updates the association row with the audit data
+        (updated_by and user_ip).  If the contact is no longer associated
+        with any client,
+        it is deleted.
         """
         try:
             UserValidator.validate_deletion_contact_association(db, client_id, contact_id, x_user_id)

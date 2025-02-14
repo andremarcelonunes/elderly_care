@@ -339,3 +339,45 @@ def test_validate_association_contact_success(db_session, mocker):
     db_session.query.return_value.filter.return_value.first.return_value = None
     UserValidator.validate_association_contact(db_session, client_id=1, contact_id=2)
     # No exception should be raised
+
+
+def test_validate_deletion_contact_association_unauthorized(db_session, mocker):
+    client = mocker.Mock(user_id=1)
+    contact = mocker.Mock(id=2)
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        client,
+        contact,
+    ]
+    with pytest.raises(HTTPException) as excinfo:
+        UserValidator.validate_deletion_contact_association(
+            db_session, client_id=1, contact_id=2, x_user_id=3
+        )
+    assert excinfo.value.status_code == 403
+    assert excinfo.value.detail == "You are not authorized to delete this association"
+
+
+def test_validate_deletion_contact_association_client_not_found(db_session, mocker):
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        None,  # Client not found
+        mocker.Mock(id=2),  # Contact found
+    ]
+    with pytest.raises(HTTPException) as excinfo:
+        UserValidator.validate_deletion_contact_association(
+            db_session, client_id=1, contact_id=2, x_user_id=1
+        )
+    assert excinfo.value.status_code == 404
+    assert excinfo.value.detail == "Client not found"
+
+
+def test_validate_deletion_contact_association_contact_not_found(db_session, mocker):
+    client = mocker.Mock(user_id=1)
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        client,  # Client found
+        None,    # Contact not found
+    ]
+    with pytest.raises(HTTPException) as excinfo:
+        UserValidator.validate_deletion_contact_association(
+            db_session, client_id=1, contact_id=2, x_user_id=1
+        )
+    assert excinfo.value.status_code == 404
+    assert excinfo.value.detail == "Contact not found"
