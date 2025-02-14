@@ -5,7 +5,8 @@ from backendeldery.models import User
 from backendeldery.crud.users import CRUDAssisted
 
 
-def test_create_association_success(mocker):
+@pytest.mark.asyncio
+async def test_create_association_success(mocker):
     db_session = Mock(spec=Session)
     mock_user = User(id=1, role="subscriber")
 
@@ -18,16 +19,17 @@ def test_create_association_success(mocker):
     crud_assisted = CRUDAssisted()
 
     # Call the method
-    result = crud_assisted.create_association(db_session, subscriber_id=1,
-                                              assisted_id=2, created_by=1,
-                                              user_ip="127.0.0.1")
+    result = await crud_assisted.create_association(
+        db_session, subscriber_id=1, assisted_id=2, created_by=1, user_ip="127.0.0.1"
+    )
 
     # Assert the result
     assert result == {"message": "Association created successfully"}
     db_session.commit.assert_called_once()
 
 
-def test_create_association_user_not_found(mocker):
+@pytest.mark.asyncio
+async def test_create_association_user_not_found(mocker):
     db_session = Mock(spec=Session)
 
     # Mock the query chain to return None
@@ -40,15 +42,19 @@ def test_create_association_user_not_found(mocker):
 
     # Call the method and assert ValueError is raised
     with pytest.raises(ValueError) as excinfo:
-        crud_assisted.create_association(db_session, subscriber_id=1,
-                                         assisted_id=2,
-                                         created_by=1,
-                                         user_ip="127.0.0.1")
+        await crud_assisted.create_association(
+            db_session,
+            subscriber_id=1,
+            assisted_id=2,
+            created_by=1,
+            user_ip="127.0.0.1",
+        )
     assert str(excinfo.value) == "User not found"
     db_session.rollback.assert_called_once()
 
 
-def test_create_association_exception(mocker):
+@pytest.mark.asyncio
+async def test_create_association_exception(mocker):
     db_session = Mock(spec=Session)
 
     # Mock the query chain to raise an exception
@@ -63,10 +69,12 @@ def test_create_association_exception(mocker):
 
     # Call the method and assert RuntimeError is raised
     with pytest.raises(RuntimeError) as excinfo:
-        crud_assisted.create_association(db_session,
-                                         subscriber_id=1,
-                                         assisted_id=2,
-                                         created_by=1,
-                                         user_ip="127.0.0.1")
+        await crud_assisted.create_association(
+            db_session,
+            subscriber_id=1,
+            assisted_id=2,
+            created_by=1,
+            user_ip="127.0.0.1",
+        )
     assert str(excinfo.value) == "Error creating association: Unexpected error"
     db_session.rollback.assert_called_once()

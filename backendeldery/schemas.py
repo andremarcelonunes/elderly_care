@@ -6,18 +6,18 @@ from pydantic import (
     StringConstraints,
     ConfigDict,
 )
-from typing import Optional, Literal, List, Annotated, Dict
+from typing import Optional, Literal, Annotated, Dict
 from datetime import date, datetime
 
 
 # noinspection PyMethodParameters
 class UserCreate(BaseModel):
     name: str
-    email: Optional[EmailStr] = None  # Optional by default.
-    phone: str = Field(..., pattern=r"^\+?[1-9]\d{1,14}$")  # Validação do phone
+    email: Optional[EmailStr] = None  # Remains optional by default.
+    phone: str = Field(..., pattern=r"^\+?[1-9]\d{1,14}$")
     role: Literal["contact", "subscriber", "assisted", "attendant"]
     active: Optional[bool] = True
-    password: str = Field(..., min_length=8)  # Validação básica de tamanho mínimo
+    password: Optional[str] = Field(None, min_length=8)  # Now optional.
     client_data: Optional["SubscriberCreate"] = None
     attendant_data: Optional["AttendantCreate"] = None
 
@@ -28,9 +28,14 @@ class UserCreate(BaseModel):
                 raise ValueError("client_data is required when role is 'subscriber'.")
             if model.email is None:
                 raise ValueError("email is required when role is 'subscriber'.")
+            if model.password is None:
+                raise ValueError("password is required when role is 'subscriber'.")
         elif model.role == "attendant":
             if model.attendant_data is None:
                 raise ValueError("attendant_data is required when role is 'attendant'.")
+            if model.password is None:
+                raise ValueError("password is required when role is 'attendant'.")
+        # For roles "assisted" and "contact", email and password may be omitted.
         return model
 
 
@@ -85,7 +90,7 @@ class SubscriberInfo(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     code_address: Optional[str] = None
-    birthday: date
+    birthday: Optional[date] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -134,7 +139,7 @@ class UserUpdate(BaseModel):
 class UserResponse(BaseModel):
     id: int
     name: str
-    email: EmailStr
+    email: Optional[str] = None
     phone: str
     active: bool
     client_data: Optional[Dict] = None

@@ -108,7 +108,10 @@ def test_create_user_with_client_data(db_session, user_data):
         "birthday": "1992-02-02",
     }
 
-    sqlalchemy_user_data = {k: v for k, v in user_data_dict.items() if hasattr(User, k)}
+    # Exclude 'client_data' from the dictionary, since it's a read-only property on User
+    sqlalchemy_user_data = {
+        k: v for k, v in user_data_dict.items() if hasattr(User, k) and k != "client_data"
+    }
     mock_user_data = MockUserCreate(**sqlalchemy_user_data)
     db_session.query.return_value.filter.return_value.first.return_value = User(
         **sqlalchemy_user_data

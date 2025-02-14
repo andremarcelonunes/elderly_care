@@ -31,10 +31,11 @@ def user_data():
     )
 
 
-def test_create_user(db_session, user_data):
+@pytest.mark.asyncio
+async  def test_create_user(db_session, user_data):
     crud_user = CRUDUser()
-    created_user = crud_user.create(
-        db_session, user_data.model_dump(), created_by=1, user_ip="127.0.0.1"
+    created_user = await crud_user.create(
+        db=db_session, obj_in=user_data.model_dump(), created_by=1, user_ip="127.0.0.1"
     )
     assert created_user.email == user_data.email
     assert created_user.phone == user_data.phone

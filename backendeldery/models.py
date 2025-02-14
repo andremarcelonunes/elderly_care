@@ -55,7 +55,9 @@ client_contact_association = Table(
         primary_key=True,
     ),
     Column("created_at", DateTime, default=func.now(), nullable=False),
-    Column("updated_at", DateTime, default=func.now(), onupdate=func.now(), nullable=False),
+    Column(
+        "updated_at", DateTime, default=func.now(), onupdate=func.now(), nullable=False
+    ),
     Column("created_by", Integer, nullable=False),
     Column("updated_by", Integer, nullable=True),
     Column("user_ip", String, nullable=True),
@@ -72,7 +74,7 @@ class User(Base):
     phone = Column(String(15), unique=True, nullable=False)
     role = Column(String(50), nullable=False)
     active = Column(Boolean, default=False)
-    password_hash = Column(String(128), nullable=False)
+    password_hash = Column(String(128), nullable=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by = Column(Integer, nullable=False)
@@ -84,9 +86,10 @@ class User(Base):
     clients = relationship(
         "Client",
         secondary=client_contact_association,
-        primaryjoin=id == client_contact_association.c.user_contact_id,
-        secondaryjoin=id == client_contact_association.c.user_client_id,
-        back_populates="contacts"  # ✅ Matches 'contacts' in Client
+        primaryjoin=lambda: User.id == client_contact_association.c.user_contact_id,
+        secondaryjoin=lambda: Client.user_id
+        == client_contact_association.c.user_client_id,
+        back_populates="contacts",
     )
     client = relationship("Client", uselist=False, back_populates="user")
     patient_progress = relationship("PatientProgress", back_populates="attendant")
@@ -98,6 +101,20 @@ class User(Base):
         Returns the assisted clients for the user via the related Client record.
         """
         return self.client.assisted_clients if self.client else []
+
+    @property
+    def client_data(self):
+        if self.client:
+            # Return a dictionary representation of the client.
+            # You could implement a method like as_dict() on Client, or manually construct the dict.
+            return {
+                "user_id": self.client.user_id,
+                "cpf": self.client.cpf,
+                "address": self.client.address,
+                "city": self.client.city,
+                # ... add any other fields you need ...
+            }
+        return None
 
 
 class Function(Base):
@@ -210,9 +227,10 @@ class Client(Base):
     contacts = relationship(
         "User",
         secondary=client_contact_association,
-        primaryjoin=user_id == client_contact_association.c.user_client_id,
-        secondaryjoin=user_id == client_contact_association.c.user_contact_id,
-        back_populates="clients"  # ✅ Matches 'clients' in User
+        primaryjoin=lambda: Client.user_id
+        == client_contact_association.c.user_client_id,
+        secondaryjoin=lambda: User.id == client_contact_association.c.user_contact_id,
+        back_populates="clients",
     )
     # Relacionamento com Team
     team = relationship("Team", back_populates="clients")
@@ -225,7 +243,7 @@ class Client(Base):
         secondary=client_association,
         primaryjoin=(user_id == client_association.c.subscriber_id),
         secondaryjoin=(user_id == client_association.c.assisted_id),
-        backref="subscribers"
+        backref="subscribers",
     )
 
 

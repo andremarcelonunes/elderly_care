@@ -1,6 +1,11 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from backendeldery.models import User, Client, client_association, client_contact_association
+from backendeldery.models import (
+    User,
+    Client,
+    client_association,
+    client_contact_association,
+)
 from backendeldery.schemas import UserCreate, SubscriberCreate
 
 
@@ -9,6 +14,11 @@ class UserValidator:
     def validate_user(db: Session, user_data: UserCreate):
         if db.query(User).filter(User.email == user_data.email).first():
             raise HTTPException(status_code=422, detail="Email already exists")
+        if db.query(User).filter(User.phone == user_data.phone).first():
+            raise HTTPException(status_code=422, detail="Phone already exists")
+
+    @staticmethod
+    def validate_contact(db: Session, user_data: UserCreate):
         if db.query(User).filter(User.phone == user_data.phone).first():
             raise HTTPException(status_code=422, detail="Phone already exists")
 
@@ -32,13 +42,13 @@ class UserValidator:
 
         if (
                 db.query(Client)
-                .join(User)
-                .filter(
+                        .join(User)
+                        .filter(
                     (Client.cpf == user_data["client_data"]["cpf"])
                     & (User.email == user_data["email"])
                     & (User.phone == user_data["phone"])
                 )
-                .first()
+                        .first()
         ):
             raise HTTPException(status_code=422, detail="The client already exists")
         if existing_user:
@@ -120,7 +130,7 @@ class UserValidator:
             db.query(client_association)
             .filter(
                 client_association.c.assisted_id == assisted_id,
-                client_association.c.subscriber_id == subscriber_id
+                client_association.c.subscriber_id == subscriber_id,
             )
             .first()
         )
@@ -149,9 +159,8 @@ class UserValidator:
         if association:
             raise HTTPException(status_code=422, detail="Association already exists")
 
-    def validate_association_contact(
-            db: Session, client_id: int, contact_id: int
-    ):
+    @staticmethod
+    def validate_association_contact(db: Session, client_id: int, contact_id: int):
         """
         Validates whether a contact can be associated with a client.
         """
@@ -168,7 +177,7 @@ class UserValidator:
         # Prevent clients from adding themselves as contacts
         if client.user_id == contact.id:
             raise HTTPException(
-                status_code=403, detail="A client cannot be their own contact"
+                status_code=403, detail="Clients cannot be their own contacts"
             )
 
         # Check if this contact is already associated with this client
@@ -188,3 +197,26 @@ class UserValidator:
             )
 
         # Check if the contact is already associated with another client
+
+    @staticmethod
+    def validate_deletion_contact_association(
+            db: Session, client_id: int, contact_id: int, x_user_id: int
+    ):
+        """
+        Validates whether a contact association can be deleted.
+        """
+        # Check if the client exists
+        client = db.query(Client).filter(Client.user_id == client_id).one_or_none()
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+
+        # Check if the contact exists
+        contact = db.query(User).filter(User.id == contact_id).one_or_none()
+        if not contact:
+            raise HTTPException(status_code=404, detail="Contact not found")
+
+        # Check if this client_id is equal to x_user_id
+        if client_id != x_user_id:
+            raise HTTPException(
+                status_code=403, detail="You are not authorized to delete this association"
+            )

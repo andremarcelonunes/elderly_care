@@ -4,7 +4,12 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy import update
 from fastapi import HTTPException
 from backendeldery.utils import hash_password
-from backendeldery.models import User, Client, client_association, client_contact_association
+from backendeldery.models import (
+    User,
+    Client,
+    client_association,
+    client_contact_association,
+)
 from backendeldery.schemas import (
     UserCreate,
     SubscriberCreate,
@@ -29,7 +34,7 @@ class CRUDUser(CRUDBase[User, UserCreate]):
     def __init__(self):
         super().__init__(User)
 
-    def create(self, db: Session, obj_in: dict, created_by: int, user_ip: str) -> User:
+    async def create(self, db: Session, obj_in: dict, created_by: int, user_ip: str) -> User:
         """
         Cria um novo usuário e registra informações de auditoria.
         """
@@ -42,7 +47,7 @@ class CRUDUser(CRUDBase[User, UserCreate]):
         user_data["password_hash"] = hash_password(obj_in.pop("password"))
         user_data["created_by"] = created_by
         user_data["user_ip"] = user_ip
-        db_obj = self.model(**user_data)
+        db_obj = crud_user.model(**user_data)
         db.add(db_obj)
         db.flush()  # Usa `flush` ao invés de `commit` para preparar a transação sem encerrar
         db.refresh(db_obj)
@@ -53,8 +58,7 @@ class CRUDClient(CRUDBase):
     def __init__(self):
         super().__init__(Client)
 
-    def create(
-            self,
+    async def create(
             db: Session,
             user: User,
             obj_in: SubscriberCreate,
@@ -68,7 +72,7 @@ class CRUDClient(CRUDBase):
         client_data["user_id"] = user.id
         client_data["created_by"] = created_by
         client_data["user_ip"] = user_ip
-        obj = self.model(**client_data)
+        obj = crud_client.model(**client_data)
         db.add(obj)
         db.flush()  # Usa `flush` para preparar a transação sem encerrar
         db.refresh(obj)
@@ -80,18 +84,18 @@ class CRUDSpecializedUser:
         self.crud_user = CRUDUser()
         self.crud_client = CRUDClient()
 
-    def create_subscriber(
-            self, db: Session, user_data: dict, created_by: int, user_ip: str
-    ):
+    async def create_subscriber(self, db: Session, user_data: dict,
+                                created_by: int, user_ip: str
+                                ):
         """
         Cria um assinante e associa os dados do usuário em uma única transação.
         """
         try:
-            user = self.crud_user.create(
+            user = await crud_user.create(
                 db=db, obj_in=user_data, created_by=created_by, user_ip=user_ip
             )
 
-            client = self.crud_client.create(
+            client = await crud_client.create(
                 db=db,
                 user=user,
                 created_by=created_by,
@@ -115,7 +119,7 @@ class CRUDSpecializedUser:
         finally:
             db.close()  # Ensure the session is closed
 
-    def search_subscriber(self, db: Session, criteria: dict):
+    async def search_subscriber(self, db: Session, criteria: dict):
         """
         Busca um assinante com base nos critérios fornecidos.
         """
@@ -125,16 +129,16 @@ class CRUDSpecializedUser:
             if field == "cpf":
                 # Query Client table via CPF
                 return (
-                    db.query(self.crud_user.model)
-                    .join(self.crud_client.model)
-                    .filter(self.crud_client.model.cpf == value)
+                    db.query(crud_user.model)
+                    .join(crud_client.model)
+                    .filter(crud_client.model.cpf == value)
                     .first()
                 )
             elif field in ["email", "phone"]:
                 # Query User table directly
                 return (
-                    db.query(self.crud_user.model)
-                    .filter(getattr(self.crud_user.model, field) == value)
+                    db.query(crud_user.model)
+                    .filter(getattr(crud_user.model, field) == value)
                     .first()
                 )
             else:
@@ -144,18 +148,18 @@ class CRUDSpecializedUser:
                 status_code=500, detail=f"Error to search subscriber: {str(e)}"
             )
 
-    def get_user_with_client(self, db: Session, user_id: int):
+    async def get_user_with_client(self, db: Session, user_id: int):
         """
         Retrieve a user along with their client data by user ID.
         """
         try:
             user = (
-                db.query(self.crud_user.model)
+                db.query(crud_user.model)
                 .outerjoin(
-                    self.crud_client.model,
-                    self.crud_user.model.id == self.crud_client.model.user_id,
+                    crud_client.model,
+                    crud_user.model.id == crud_client.model.user_id,
                 )
-                .filter(self.crud_user.model.id == user_id)
+                .filter(crud_user.model.id == user_id)
                 .first()
             )
             if not user:
@@ -164,8 +168,8 @@ class CRUDSpecializedUser:
             user_info = UserInfo.from_orm(user)
             if user.client:
                 user_info.client_data = SubscriberInfo.from_orm(user.client)
-                return user_info
-            return None
+
+            return user_info
         except HTTPException as e:
             raise e
         except Exception as e:
@@ -174,14 +178,13 @@ class CRUDSpecializedUser:
                 detail=f"Error retrieving user with client data: {str(e)}",
             )
 
-    @staticmethod
-    async def update_user_and_client(
-            db_session: Session,
-            user_id: int,
-            user_update: UserUpdate,
-            user_ip: str,
-            updated_by: int,
-    ):
+
+    async def update_user_and_client(self, db_session: Session,
+                                     user_id: int,
+                                     user_update: UserUpdate,
+                                     user_ip: str,
+                                     updated_by: int,
+                                     ):
         try:
             # Fetch the user and client in a single query
             result = db_session.execute(
@@ -244,7 +247,7 @@ class CRUDAssisted:
     def __init__(self):
         self.model = client_association
 
-    def create_association(
+    async def create_association(
             self,
             db: Session,
             subscriber_id: int,
@@ -263,7 +266,7 @@ class CRUDAssisted:
 
             # Create the association
             db.execute(
-                self.model.insert().values(
+                crud_assisted.model.insert().values(
                     subscriber_id=subscriber_id,
                     assisted_id=assisted_id,
                     created_by=created_by,
@@ -280,7 +283,7 @@ class CRUDAssisted:
             db.rollback()
             raise RuntimeError(f"Error creating association: {str(e)}")
 
-    def get_assisted_clients_by_subscriber(self, db: Session, subscriber_id: int):
+    async def get_assisted_clients_by_subscriber(self, db: Session, subscriber_id: int):
         """
         Retrieves the assisted clients for a given subscriber by first querying the User,
         then accessing the assisted_clients property.
@@ -296,7 +299,7 @@ class CRUDContact:
         self.user_crud = user_crud
         self.model = client_contact_association
 
-    def create_contact(
+    async def create_contact(
             self,
             db: Session,
             user_data: dict,
@@ -308,14 +311,14 @@ class CRUDContact:
         """
         try:
             # Fetch the user to check the role
-            user = self.user_crud.create(
+            user = await crud_user.create(
                 db=db, obj_in=user_data, created_by=created_by, user_ip=user_ip
             )
             if not user:
                 raise ValueError("User not found")
 
             db.commit()
-            return {"message": f"Contact has been created"}
+            return user
 
         except ValueError as e:
             db.rollback()
@@ -324,7 +327,7 @@ class CRUDContact:
             db.rollback()
             raise RuntimeError(f"Error creating contact: {str(e)}")
 
-    def create_contact_association(
+    async def create_contact_association(
             self,
             db: Session,
             client_id: int,
@@ -333,28 +336,121 @@ class CRUDContact:
             user_ip: str,
     ):
         """
-       Associate a contact  to some client.
+        Associate a contact  to some client.
         """
         try:
-            # Create the association
-            self.model.insert().values(
-                user_client_id=client_id,
-                user_contact_id=user_contact_id,
+            association = client_contact_association.insert().values(
+                user_client_id=client_id,  # The client's user_id
+                user_contact_id=user_contact_id,  # The contact's user id
                 created_by=created_by,
-                updated_by=created_by,
+                updated_by=None,
                 user_ip=user_ip,
             )
-
-            # Add the instance to the session.
+            db.execute(association)
             db.commit()
-            return {"message": "Contact has been associated"}
+            return {"message": "Association created successfully"}
 
         except ValueError as e:
             db.rollback()
             raise e
         except Exception as e:
             db.rollback()
-            raise RuntimeError(f"Error creating association between contact and client: {str(e)}")
+            raise RuntimeError(
+                f"Error creating association between contact and client: {str(e)}"
+            )
+
+    async def get_contacts_by_client(self,
+                                     db: Session, client_id: int):
+        """
+        Retrieves all contacts for a given client.
+        """
+        client = db.query(Client).filter(Client.user_id == client_id).one_or_none()
+        if not client:
+            raise ValueError("Client not found")
+        return client.contacts
+
+    async def get_clients_by_contact(self, db: Session, contact_id: int):
+        """
+        Retrieves all clients associated with the given contact (User) from the association table,
+        excluding the contact's own client record (if any).
+        """
+
+        # Retrieve the user record (contact)
+        user = db.query(User).filter(User.id == contact_id).one_or_none()
+        if not user:
+            raise ValueError("User not found")
+
+        # Get all associated clients through the many-to-many relationship
+        associated_clients = list(user.clients)
+
+        # Filter out the user's own client record (if the contact is also a client)
+        filtered_clients = [
+            client for client in associated_clients if client.user_id != contact_id
+        ]
+
+        return filtered_clients
+
+    async def delete_contact_association(self, db: Session, client_id: int, contact_id: int):
+        """
+        Deletes the association record for a given client and contact.
+        Returns the number of rows deleted.
+        """
+        deleted_count = (
+            db.query(client_contact_association)
+            .filter(
+                client_contact_association.c.user_client_id == client_id,
+                client_contact_association.c.user_contact_id == contact_id
+            )
+            .delete(synchronize_session=False)
+        )
+        db.commit()
+        return deleted_count
+
+    async def delete_contact_if_orphan(self, db: Session, contact_id: int):
+        """
+        Checks if the contact is still associated with any client.
+        If not, deletes the contact from the User table and returns the deleted contact.
+        """
+        remaining = (
+            db.query(client_contact_association)
+            .filter(client_contact_association.c.user_contact_id == contact_id)
+            .count()
+        )
+        if remaining == 0:
+            contact = db.query(User).filter(User.id == contact_id).one_or_none()
+            if contact:
+                db.delete(contact)
+                db.commit()
+                return contact
+        return None
+
+    async def delete_contact_relation(self, db: Session, client_id: int,
+                                      contact_id: int, user_ip: str, x_user_id: int):
+        """
+        Updates the association with audit data (if needed) and then deletes the association
+        between the specified client and contact. If the contact is not associated with any other
+        client, deletes the contact record too.
+        """
+        # (Optional) Update the association row with audit info.
+        updated_rows = (
+            db.query(client_contact_association)
+            .filter(
+                client_contact_association.c.user_client_id == client_id,
+                client_contact_association.c.user_contact_id == contact_id
+            )
+            .update({"updated_by": x_user_id, "user_ip": user_ip}, synchronize_session=False)
+        )
+        db.commit()
+
+        # Delete the association row.
+        deleted_count = await crud_contact.delete_contact_association(db, client_id, contact_id)
+        if deleted_count == 0:
+            raise ValueError("Association not found")
+
+        # Delete the contact record if it is now orphaned.
+        await crud_contact.delete_contact_if_orphan(db, contact_id=contact_id)
+
+        return True
 
 
 crud_assisted = CRUDAssisted()
