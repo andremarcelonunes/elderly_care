@@ -323,7 +323,8 @@ async def delete_contact_association(
     try:
         client_ip = request.client.host if request else "unknown"
         return await UserService.delete_contact_relation(db, client_id,
-                                                   contact_id, user_ip=client_ip, x_user_id=x_user_id)
+                                                         contact_id, user_ip=client_ip,
+                                                         x_user_id=x_user_id)
     except HTTPException as e:
         raise e
     except Exception as e:

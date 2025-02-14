@@ -58,13 +58,12 @@ class CRUDClient(CRUDBase):
     def __init__(self):
         super().__init__(Client)
 
-    async def create(
-            db: Session,
-            user: User,
-            obj_in: SubscriberCreate,
-            created_by: int,
-            user_ip: str,
-    ):
+    async def create(self,
+                     db: Session,
+                     user: User,
+                     obj_in: SubscriberCreate,
+                     created_by: int,
+                     user_ip: str,):
         """
         Cria um cliente e registra informações de auditoria.
         """
@@ -95,13 +94,12 @@ class CRUDSpecializedUser:
                 db=db, obj_in=user_data, created_by=created_by, user_ip=user_ip
             )
 
-            client = await crud_client.create(
-                db=db,
-                user=user,
-                created_by=created_by,
-                user_ip=user_ip,
-                obj_in=SubscriberCreate(**user_data["client_data"]),
-            )
+            await crud_client.create(db=db,
+                                     user=user,
+                                     created_by=created_by,
+                                     user_ip=user_ip,
+                                     obj_in=SubscriberCreate(**user_data["client_data"]),
+                                     )
 
             db.commit()  # Commit the transaction
 
@@ -177,7 +175,6 @@ class CRUDSpecializedUser:
                 status_code=500,
                 detail=f"Error retrieving user with client data: {str(e)}",
             )
-
 
     async def update_user_and_client(self, db_session: Session,
                                      user_id: int,
