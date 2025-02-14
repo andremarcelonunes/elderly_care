@@ -52,7 +52,8 @@ class MockUserUpdate(BaseModel):
     password_hash: str
 
 
-def test_get_user(db_session):
+@pytest.mark.asyncio
+async def test_get_user(db_session):
     crud_base = CRUDBase(User)
     mocked_user = User(id=1)
     db_session.query.return_value.filter.return_value.first.return_value = mocked_user
@@ -73,7 +74,7 @@ def test_get_user(db_session):
             "user_ip": None,
         },
     ) as mock_obj_to_dict:
-        result = crud_base.get(db_session, 1)
+        result = await crud_base.get(db_session, 1)
         assert result == {
             "id": 1,
             "name": None,
@@ -90,7 +91,8 @@ def test_get_user(db_session):
         }
 
 
-def test_create_user_with_client_data(db_session, user_data):
+@pytest.mark.asyncio
+async def test_create_user_with_client_data(db_session, user_data):
     crud_base = CRUDBase(User)
     # Mock database session methods
     db_session.add.return_value = None
@@ -108,7 +110,10 @@ def test_create_user_with_client_data(db_session, user_data):
         "birthday": "1992-02-02",
     }
 
-    sqlalchemy_user_data = {k: v for k, v in user_data_dict.items() if hasattr(User, k)}
+    # Exclude 'client_data' from the dictionary, since it's a read-only property on User
+    sqlalchemy_user_data = {
+        k: v for k, v in user_data_dict.items() if hasattr(User, k) and k != "client_data"
+    }
     mock_user_data = MockUserCreate(**sqlalchemy_user_data)
     db_session.query.return_value.filter.return_value.first.return_value = User(
         **sqlalchemy_user_data
@@ -129,11 +134,12 @@ def test_create_user_with_client_data(db_session, user_data):
             "user_ip": None,
         },
     ):
-        result = crud_base.create(db_session, mock_user_data)
+        result = await crud_base.create(db_session, mock_user_data)
         assert result["email"] == user_data.email
 
 
-def test_update_user(db_session, user_data):
+@pytest.mark.asyncio
+async def test_update_user(db_session, user_data):
     crud_base = CRUDBase(User)
     db_session.query.return_value.filter.return_value.first.return_value = User(id=1)
     user_data_dict = user_data.model_dump(exclude_unset=True)
@@ -141,12 +147,12 @@ def test_update_user(db_session, user_data):
     user_data_dict.pop("password")  # Exclude password
     user_data_dict.pop("client_data")  # Exclude client_data as it's not valid for User
     mock_user_update = MockUserUpdate(**user_data_dict)
-    result = crud_base.update(db_session, 1, mock_user_update)
+    result = await crud_base.update(db_session, 1, mock_user_update)
     assert result["email"] == user_data.email
 
-
-def test_delete_user(db_session):
+@pytest.mark.asyncio
+async def test_delete_user(db_session):
     crud_base = CRUDBase(User)
     db_session.query.return_value.filter.return_value.first.return_value = User(id=1)
-    result = crud_base.delete(db_session, 1)
+    result = await crud_base.delete(db_session, 1)
     assert result["id"] == 1

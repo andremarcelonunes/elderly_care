@@ -39,6 +39,31 @@ client_association = Table(
     schema="elderly_care",
 )
 
+client_contact_association = Table(
+    "client_contact_association",
+    Base.metadata,
+    Column(
+        "user_client_id",
+        Integer,
+        ForeignKey("elderly_care.clients.user_id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "user_contact_id",
+        Integer,
+        ForeignKey("elderly_care.users.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column("created_at", DateTime, default=func.now(), nullable=False),
+    Column(
+        "updated_at", DateTime, default=func.now(), onupdate=func.now(), nullable=False
+    ),
+    Column("created_by", Integer, nullable=False),
+    Column("updated_by", Integer, nullable=True),
+    Column("user_ip", String, nullable=True),
+    schema="elderly_care",
+)
+
 
 class User(Base):
     __tablename__ = "users"
@@ -49,15 +74,23 @@ class User(Base):
     phone = Column(String(15), unique=True, nullable=False)
     role = Column(String(50), nullable=False)
     active = Column(Boolean, default=False)
-    password_hash = Column(String(128), nullable=False)
+    password_hash = Column(String(128), nullable=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by = Column(Integer, nullable=False)
     updated_by = Column(Integer, nullable=True)
     user_ip = Column(String, nullable=True)
 
-    # Relacionamento com ClientContact (todos os clientes para os quais o usuário é contato)
-    client_contacts = relationship("ClientContact", back_populates="contact")
+    # Clients this User is a contact for (Many-to-Many)
+    # Clients this User is a contact for (Many-to-Many)
+    clients = relationship(
+        "Client",
+        secondary=client_contact_association,
+        primaryjoin=lambda: User.id == client_contact_association.c.user_contact_id,
+        secondaryjoin=lambda: Client.user_id
+        == client_contact_association.c.user_client_id,
+        back_populates="contacts",
+    )
     client = relationship("Client", uselist=False, back_populates="user")
     patient_progress = relationship("PatientProgress", back_populates="attendant")
     tickets = relationship("Ticket", back_populates="attendant")  # Adicionado
@@ -68,6 +101,20 @@ class User(Base):
         Returns the assisted clients for the user via the related Client record.
         """
         return self.client.assisted_clients if self.client else []
+
+    @property
+    def client_data(self):
+        if self.client:
+            # Return a dictionary representation of the client.
+            # You could implement a method like as_dict() on Client, or manually construct the dict.
+            return {
+                "user_id": self.client.user_id,
+                "cpf": self.client.cpf,
+                "address": self.client.address,
+                "city": self.client.city,
+                # ... add any other fields you need ...
+            }
+        return None
 
 
 class Function(Base):
@@ -176,8 +223,15 @@ class Client(Base):
     updated_by = Column(Integer, nullable=True)
     user_ip = Column(String, nullable=True)
 
-    # Relacionamento com ClientContact (acessar todos os contatos do cliente)
-    contacts = relationship("ClientContact", backref="client")
+    # Many-to-Many Relationship: All contacts of a Client
+    contacts = relationship(
+        "User",
+        secondary=client_contact_association,
+        primaryjoin=lambda: Client.user_id
+        == client_contact_association.c.user_client_id,
+        secondaryjoin=lambda: User.id == client_contact_association.c.user_contact_id,
+        back_populates="clients",
+    )
     # Relacionamento com Team
     team = relationship("Team", back_populates="clients")
     user = relationship("User", back_populates="client")
@@ -189,29 +243,8 @@ class Client(Base):
         secondary=client_association,
         primaryjoin=(user_id == client_association.c.subscriber_id),
         secondaryjoin=(user_id == client_association.c.assisted_id),
-        backref="subscribers"
+        backref="subscribers",
     )
-
-
-class ClientContact(Base):
-    __tablename__ = "contacts"
-    __table_args__ = {"schema": "elderly_care"}
-    user_client_id = Column(
-        Integer,
-        ForeignKey("elderly_care.clients.user_id"),
-        index=True,
-        primary_key=True,
-    )
-    user_contact_id = Column(
-        Integer, ForeignKey("elderly_care.users.id"), index=True, nullable=False
-    )
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-    created_by = Column(Integer, nullable=False)
-    updated_by = Column(Integer, nullable=True)
-    user_ip = Column(String, nullable=True)
-
-    contact = relationship("User", back_populates="client_contacts")
 
 
 class NotificationConfig(Base):

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from backendeldery.crud.users import crud_specialized_user, crud_assisted
+from backendeldery.crud.users import crud_specialized_user, crud_assisted, crud_contact
 from backendeldery.schemas import UserCreate, UserUpdate, UserResponse
 from backendeldery.validators.user_validator import UserValidator
 from fastapi import HTTPException
@@ -15,7 +15,7 @@ class UserService:
         """
         try:
             UserValidator.validate_subscriber(db, user_data.model_dump())
-            return crud_specialized_user.create_subscriber(
+            return await crud_specialized_user.create_subscriber(
                 db=db,
                 user_data=user_data.model_dump(),  # Use model_dump instead of dict
                 created_by=created_by,
@@ -29,10 +29,12 @@ class UserService:
     @staticmethod
     async def search_subscriber(db: Session, criteria: dict):
         try:
-            user = crud_specialized_user.search_subscriber(db, criteria)
+            user = await crud_specialized_user.search_subscriber(db, criteria)
             if user:
                 return user.id  # Return only the user ID
             return None
+        except HTTPException as e:
+            raise e
         except Exception as e:
             raise HTTPException(
                 status_code=500, detail=f"Error in UserService: {str(e)}"
@@ -44,7 +46,7 @@ class UserService:
         Get subscriber information by user ID.
         """
         try:
-            user = crud_specialized_user.get_user_with_client(db=db, user_id=user_id)
+            user = await crud_specialized_user.get_user_with_client(db=db, user_id=user_id)
             if user:
                 return user
             return None
@@ -74,7 +76,7 @@ class UserService:
                 raise HTTPException(status_code=400, detail=result["error"])
 
             # Fetch the updated user to return the correct response
-            updated_user = crud_specialized_user.get_user_with_client(db, user_id)
+            updated_user = await crud_specialized_user.get_user_with_client(db, user_id)
             if not updated_user:
                 raise HTTPException(status_code=404, detail="User not found")
 
@@ -112,7 +114,7 @@ class UserService:
             UserValidator.validate_association_assisted(db, subscriber_id, assisted_id)
 
             # Create the association
-            return crud_assisted.create_association(
+            return await crud_assisted.create_association(
                 db, subscriber_id, assisted_id, created_by, user_ip
             )
         except HTTPException as e:
@@ -121,12 +123,136 @@ class UserService:
             raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
     @staticmethod
-    def get_assisted_clients(db: Session, subscriber_id: int):
+    async def get_assisted_clients(db: Session, subscriber_id: int):
         """
         Retrieves the assisted clients for a given subscriber.
         """
         try:
-            return crud_assisted.get_assisted_clients_by_subscriber(db, subscriber_id)
+            return await crud_assisted.get_assisted_clients_by_subscriber(db, subscriber_id)
+        except HTTPException as e:
+            raise e
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    @staticmethod
+    async def register_contact(
+            db: Session,
+            user_data: UserCreate,
+            created_by: int,
+            user_ip: str,
+    ):
+        """
+        Registers a contact in the system.
+        """
+        try:
+            # Ensure user data is properly serialized
+            contact_data = user_data.model_dump()
+            UserValidator.validate_contact(db, user_data)
+            # Call the CRUD method to register the contact
+            result = await crud_contact.create_contact(
+                db=db,
+                user_data=contact_data,
+                created_by=created_by,
+                user_ip=user_ip,
+            )
+            # Extract the contact id in a way that works for both an object or a dict
+            if hasattr(result, "id"):
+                contact_id = result.id
+            elif isinstance(result, dict):
+                contact_id = result.get("id")
+            else:
+                contact_id = None
+
+            return {"message": "Contact has been created", "user": {"id": contact_id}}
+
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except HTTPException as e:
+            raise e  # Re-raise FastAPI exceptions
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    @staticmethod
+    async def create_contact_association(
+            db: Session,
+            client_id: int,
+            user_contact_id: int,
+            created_by: int,
+            user_ip: str,
+    ):
+        """
+        Creates an association between a contact and a client.
+        """
+        try:
+            UserValidator.validate_association_contact(db, client_id, user_contact_id)
+            result = await crud_contact.create_contact_association(
+                db=db,
+                client_id=client_id,
+                user_contact_id=user_contact_id,
+                created_by=created_by,
+                user_ip=user_ip,
+            )
+            return result
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    @staticmethod
+    async def get_client_contacts(db: Session, client_id: int):
+        """
+        Retrieves all contacts for a given client by calling the CRUD function.
+        """
+        try:
+            contacts = await crud_contact.get_contacts_by_client(db, client_id)
+            return contacts
+        except HTTPException as e:
+            raise e
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    @staticmethod
+    async def get_clients_of_contact(db: Session, contact_id: int):
+        """
+        Retrieves all clients for a given contact, excluding the contact's own client record.
+        """
+        try:
+            clients = await crud_contact.get_clients_by_contact(db, contact_id)
+            # Filter out the contact's own client record.
+            filtered_clients = [
+                client for client in clients if client.user_id != contact_id
+            ]
+            return filtered_clients
+        except HTTPException as e:
+            raise e
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    @staticmethod
+    async def delete_contact_relation(db: Session, client_id: int,
+                                      contact_id: int, user_ip: str, x_user_id: int):
+        """
+        Deletes the association between a given client and contact.
+        Before deletion, updates the association row with the audit data
+        (updated_by and user_ip).  If the contact is no longer associated
+        with any client,
+        it is deleted.
+        """
+        try:
+            UserValidator.validate_deletion_contact_association(db, client_id, contact_id, x_user_id)
+            await crud_contact.delete_contact_relation(db=db, client_id=client_id, contact_id=contact_id,
+                                                       user_ip=user_ip, x_user_id=x_user_id)
+            return {"message": "Contact association deleted successfully"}
+        except HTTPException as e:
+            raise e
         except ValueError as e:
             raise HTTPException(status_code=404, detail=str(e))
         except Exception as e:

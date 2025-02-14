@@ -1,5 +1,5 @@
 import time
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, MetaData
 from sqlalchemy.orm import sessionmaker, declarative_base
 from backendeldery.config import settings
 import logging
@@ -315,8 +315,15 @@ def initialize_database():
 
             print("Schema 'elderly_care' criado ou já existe.")
 
-            print("Dropping tables...")
-            Base.metadata.drop_all(engine)
+            # Drop tables in reverse order to avoid constraint issues
+            # Reflect current database state to dynamically detect tables
+            metadata = MetaData()
+            metadata.reflect(bind=connection)
+
+            # Drop tables in reverse order to avoid foreign key issues
+            print("Dropping tables in reverse order...")
+            for table in reversed(metadata.sorted_tables):
+                table.drop(connection, checkfirst=True)
             print("Tables dropped successfully.")
 
             print("Creating tables...")

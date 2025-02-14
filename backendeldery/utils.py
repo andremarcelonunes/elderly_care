@@ -1,8 +1,9 @@
 import bcrypt
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from datetime import datetime
+from typing import Optional
 from backendeldery.database import db_instance
+from datetime import datetime, timezone
 
 
 def obj_to_dict(obj, exclude_fields=None):
@@ -22,17 +23,21 @@ def obj_to_dict(obj, exclude_fields=None):
     }
 
 
-def hash_password(password: str) -> str:
+def hash_password(password: Optional[str]) -> Optional[str]:
     """
     Generates a hash for a password.
 
     :param password: Plain text password
     :return: Password hash
     """
+    if password is None:
+        return None
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+def verify_password(
+    plain_password: Optional[str], hashed_password: Optional[str]
+) -> bool:
     """
     Verifies if the plain text password matches the hash.
 
@@ -40,6 +45,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     :param hashed_password: Password hash
     :return: True if the password is valid, False otherwise
     """
+    if plain_password is None or hashed_password is None:
+        return False
     return bcrypt.checkpw(
         plain_password.encode("utf-8"), hashed_password.encode("utf-8")
     )
@@ -80,7 +87,7 @@ def current_timestamp() -> str:
 
     :return: String with the current timestamp
     """
-    return datetime.utcnow().isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def get_db():

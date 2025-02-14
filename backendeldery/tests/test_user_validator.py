@@ -122,7 +122,9 @@ def test_validate_subscriber_client_with_phone_exists(db_session, user_data):
 def test_validate_association_assisted_subscriber_not_found(db_session):
     db_session.query.return_value.filter.return_value.one_or_none.return_value = None
     with pytest.raises(HTTPException) as excinfo:
-        UserValidator.validate_association_assisted(db_session, subscriber_id=1, assisted_id=2)
+        UserValidator.validate_association_assisted(
+            db_session, subscriber_id=1, assisted_id=2
+        )
     assert excinfo.value.status_code == 404
     assert excinfo.value.detail == "Subscriber not found"
 
@@ -130,9 +132,13 @@ def test_validate_association_assisted_subscriber_not_found(db_session):
 def test_validate_association_assisted_subscriber_wrong_role(db_session, mocker):
     subscriber = mocker.Mock()
     subscriber.role = "user"
-    db_session.query.return_value.filter.return_value.one_or_none.return_value = subscriber
+    db_session.query.return_value.filter.return_value.one_or_none.return_value = (
+        subscriber
+    )
     with pytest.raises(HTTPException) as excinfo:
-        UserValidator.validate_association_assisted(db_session, subscriber_id=1, assisted_id=2)
+        UserValidator.validate_association_assisted(
+            db_session, subscriber_id=1, assisted_id=2
+        )
     assert excinfo.value.status_code == 403
     assert excinfo.value.detail == "User does not have the 'subscriber' role"
 
@@ -140,50 +146,90 @@ def test_validate_association_assisted_subscriber_wrong_role(db_session, mocker)
 def test_validate_association_assisted_assisted_not_found(db_session, mocker):
     subscriber = mocker.Mock()
     subscriber.role = "subscriber"
-    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [subscriber, None]
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        subscriber,
+        None,
+    ]
     with pytest.raises(HTTPException) as excinfo:
-        UserValidator.validate_association_assisted(db_session, subscriber_id=1, assisted_id=2)
+        UserValidator.validate_association_assisted(
+            db_session, subscriber_id=1, assisted_id=2
+        )
     assert excinfo.value.status_code == 404
     assert excinfo.value.detail == "Assisted not found"
 
 
-def test_validate_association_assisted_another_subscriber_association(db_session, mocker):
+def test_validate_association_assisted_another_subscriber_association(
+    db_session, mocker
+):
     subscriber = mocker.Mock()
     subscriber.role = "subscriber"
     assisted = mocker.Mock()
     assisted.role = "subscriber"
     assisted.id = 2
-    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [subscriber, assisted]
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        subscriber,
+        assisted,
+    ]
     with pytest.raises(HTTPException) as excinfo:
-        UserValidator.validate_association_assisted(db_session, subscriber_id=1, assisted_id=2)
+        UserValidator.validate_association_assisted(
+            db_session, subscriber_id=1, assisted_id=2
+        )
     assert excinfo.value.status_code == 403
     assert excinfo.value.detail == "Another subscriber cannot be associated"
 
 
-def test_validate_association_assisted_already_associated_with_another_subscriber(db_session, mocker):
+def test_validate_association_assisted_already_associated_with_another_subscriber(
+    db_session, mocker
+):
     subscriber = mocker.Mock()
     subscriber.role = "subscriber"
     assisted = mocker.Mock()
     assisted.role = "user"
-    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [subscriber, assisted]
-    db_session.query.return_value.filter.return_value.first.side_effect = [True, None, None]
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        subscriber,
+        assisted,
+    ]
+    db_session.query.return_value.filter.return_value.first.side_effect = [
+        True,
+        None,
+        None,
+    ]
     with pytest.raises(HTTPException) as excinfo:
-        UserValidator.validate_association_assisted(db_session, subscriber_id=1, assisted_id=2)
+        UserValidator.validate_association_assisted(
+            db_session, subscriber_id=1, assisted_id=2
+        )
     assert excinfo.value.status_code == 422
-    assert excinfo.value.detail == "Assisted  has been already associated with another subscriber"
+    assert (
+        excinfo.value.detail
+        == "Assisted  has been already associated with another subscriber"
+    )
 
 
-def test_validate_association_assisted_already_associated_with_same_subscriber(db_session, mocker):
+def test_validate_association_assisted_already_associated_with_same_subscriber(
+    db_session, mocker
+):
     subscriber = mocker.Mock()
     subscriber.role = "subscriber"
     assisted = mocker.Mock()
     assisted.role = "user"
-    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [subscriber, assisted]
-    db_session.query.return_value.filter.return_value.first.side_effect = [None, True, None]
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        subscriber,
+        assisted,
+    ]
+    db_session.query.return_value.filter.return_value.first.side_effect = [
+        None,
+        True,
+        None,
+    ]
     with pytest.raises(HTTPException) as excinfo:
-        UserValidator.validate_association_assisted(db_session, subscriber_id=1, assisted_id=2)
+        UserValidator.validate_association_assisted(
+            db_session, subscriber_id=1, assisted_id=2
+        )
     assert excinfo.value.status_code == 422
-    assert excinfo.value.detail == "Assisted  has been  already associated with this subscriber"
+    assert (
+        excinfo.value.detail
+        == "Assisted  has been  already associated with this subscriber"
+    )
 
 
 def test_validate_association_assisted_association_already_exists(db_session, mocker):
@@ -191,10 +237,19 @@ def test_validate_association_assisted_association_already_exists(db_session, mo
     subscriber.role = "subscriber"
     assisted = mocker.Mock()
     assisted.role = "user"
-    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [subscriber, assisted]
-    db_session.query.return_value.filter.return_value.first.side_effect = [None, None, True]
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        subscriber,
+        assisted,
+    ]
+    db_session.query.return_value.filter.return_value.first.side_effect = [
+        None,
+        None,
+        True,
+    ]
     with pytest.raises(HTTPException) as excinfo:
-        UserValidator.validate_association_assisted(db_session, subscriber_id=1, assisted_id=2)
+        UserValidator.validate_association_assisted(
+            db_session, subscriber_id=1, assisted_id=2
+        )
     assert excinfo.value.status_code == 422
     assert excinfo.value.detail == "Association already exists"
 
@@ -204,7 +259,125 @@ def test_validate_association_assisted_success(db_session, mocker):
     subscriber.role = "subscriber"
     assisted = mocker.Mock()
     assisted.role = "user"
-    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [subscriber, assisted]
-    db_session.query.return_value.filter.return_value.first.side_effect = [None, None, None]
-    UserValidator.validate_association_assisted(db_session, subscriber_id=1, assisted_id=2)
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        subscriber,
+        assisted,
+    ]
+    db_session.query.return_value.filter.return_value.first.side_effect = [
+        None,
+        None,
+        None,
+    ]
+    UserValidator.validate_association_assisted(
+        db_session, subscriber_id=1, assisted_id=2
+    )
     # No exception should be raised
+
+
+def test_validate_association_contact_client_not_found(db_session):
+    db_session.query.return_value.filter.return_value.one_or_none.return_value = None
+    with pytest.raises(HTTPException) as excinfo:
+        UserValidator.validate_association_contact(
+            db_session, client_id=1, contact_id=2
+        )
+    assert excinfo.value.status_code == 404
+    assert excinfo.value.detail == "Client not found"
+
+
+def test_validate_association_contact_contact_not_found(db_session, mocker):
+    client = mocker.Mock()
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        client,
+        None,
+    ]
+    with pytest.raises(HTTPException) as excinfo:
+        UserValidator.validate_association_contact(
+            db_session, client_id=1, contact_id=2
+        )
+    assert excinfo.value.status_code == 404
+    assert excinfo.value.detail == "Contact not found"
+
+
+def test_validate_association_contact_client_own_contact(db_session, mocker):
+    client = mocker.Mock(user_id=1)
+    contact = mocker.Mock(id=1)
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        client,
+        contact,
+    ]
+    with pytest.raises(HTTPException) as excinfo:
+        UserValidator.validate_association_contact(
+            db_session, client_id=1, contact_id=1
+        )
+    assert excinfo.value.status_code == 403
+    assert excinfo.value.detail == "Clients cannot be their own contacts"
+
+
+def test_validate_association_contact_already_associated(db_session, mocker):
+    client = mocker.Mock(user_id=1)
+    contact = mocker.Mock(id=2)
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        client,
+        contact,
+    ]
+    db_session.query.return_value.filter.return_value.first.return_value = True
+    with pytest.raises(HTTPException) as excinfo:
+        UserValidator.validate_association_contact(
+            db_session, client_id=1, contact_id=2
+        )
+    assert excinfo.value.status_code == 422
+    assert excinfo.value.detail == "This contact is already associated with the client"
+
+
+def test_validate_association_contact_success(db_session, mocker):
+    client = mocker.Mock(user_id=1)
+    contact = mocker.Mock(id=2)
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        client,
+        contact,
+    ]
+    db_session.query.return_value.filter.return_value.first.return_value = None
+    UserValidator.validate_association_contact(db_session, client_id=1, contact_id=2)
+    # No exception should be raised
+
+
+def test_validate_deletion_contact_association_unauthorized(db_session, mocker):
+    client = mocker.Mock(user_id=1)
+    contact = mocker.Mock(id=2)
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        client,
+        contact,
+    ]
+    with pytest.raises(HTTPException) as excinfo:
+        UserValidator.validate_deletion_contact_association(
+            db_session, client_id=1, contact_id=2, x_user_id=3
+        )
+    assert excinfo.value.status_code == 403
+    assert excinfo.value.detail == "You are not authorized to delete this association"
+
+
+def test_validate_deletion_contact_association_client_not_found(db_session, mocker):
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        None,  # Client not found
+        mocker.Mock(id=2),  # Contact found
+    ]
+    with pytest.raises(HTTPException) as excinfo:
+        UserValidator.validate_deletion_contact_association(
+            db_session, client_id=1, contact_id=2, x_user_id=1
+        )
+    assert excinfo.value.status_code == 404
+    assert excinfo.value.detail == "Client not found"
+
+
+def test_validate_deletion_contact_association_contact_not_found(db_session, mocker):
+    client = mocker.Mock(user_id=1)
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        client,  # Client found
+        None,    # Contact not found
+    ]
+    with pytest.raises(HTTPException) as excinfo:
+        UserValidator.validate_deletion_contact_association(
+            db_session, client_id=1, contact_id=2, x_user_id=1
+        )
+    assert excinfo.value.status_code == 404
+    assert excinfo.value.detail == "Contact not found"
