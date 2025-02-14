@@ -183,4 +183,3 @@ Instale o Docker Desktop para Mac ou utilize o Docker Engine.
 	•	Execução Local:
 Certifique-se de que o Python 3.12 e o Poetry estejam instalados e utilize o terminal para os comandos.
 
-
