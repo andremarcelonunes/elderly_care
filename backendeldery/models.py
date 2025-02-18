@@ -89,7 +89,7 @@ class User(Base):
         secondary=client_contact_association,
         primaryjoin=lambda: User.id == client_contact_association.c.user_contact_id,
         secondaryjoin=lambda: Client.user_id
-                              == client_contact_association.c.user_client_id,
+        == client_contact_association.c.user_client_id,
         back_populates="contacts",
     )
     client = relationship("Client", uselist=False, back_populates="user")
@@ -245,7 +245,7 @@ class Attendant(Base):
     # Relationships (Corrected Team Relationship)
     specialties = relationship("Specialty", secondary=attendant_specialties, backref="attendants")
     function = relationship("Function", back_populates="attendants")  # One-to-many (still correct)
-    teams = relationship("Team", secondary=attendant_teams, back_populates="attendants") # Many-to-many
+    teams = relationship("Team", secondary=attendant_teams, back_populates="attendants")  # Many-to-many
     availabilities = relationship("Availability", back_populates="attendant")
     appointments = relationship("Appointment", back_populates="attendant")
     # Foreign key for the function relationship (still NOT nullable)
@@ -307,7 +307,7 @@ class Client(Base):
         "User",
         secondary=client_contact_association,
         primaryjoin=lambda: Client.user_id
-                            == client_contact_association.c.user_client_id,
+        == client_contact_association.c.user_client_id,
         secondaryjoin=lambda: User.id == client_contact_association.c.user_contact_id,
         back_populates="clients",
     )
