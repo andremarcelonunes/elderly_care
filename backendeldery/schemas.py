@@ -6,7 +6,7 @@ from pydantic import (
     StringConstraints,
     ConfigDict,
 )
-from typing import Optional, Literal, Annotated, Dict
+from typing import Optional, Literal, Annotated, Dict, List
 from datetime import date, datetime
 
 
@@ -33,6 +33,8 @@ class UserCreate(BaseModel):
         elif model.role == "attendant":
             if model.attendant_data is None:
                 raise ValueError("attendant_data is required when role is 'attendant'.")
+            if model.email is None:
+                raise ValueError("email is required when role is 'attendant'.")
             if model.password is None:
                 raise ValueError("password is required when role is 'attendant'.")
         # For roles "assisted" and "contact", email and password may be omitted.
@@ -60,8 +62,17 @@ class AssistedCreate(BaseModel):
 
 
 class AttendantCreate(BaseModel):
-    function_id: Optional[int] = None
-    team_id: Optional[int] = None
+    cpf: str
+    address: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    code_address: Optional[str] = None
+    birthday: date
+    registro_conselho: Optional[str] = None
+    nivel_experiencia: Literal["junior", "pleno", "senior", "especialista"]
+    formacao: Optional[str] = None
+    specialties: Optional[List[str]] = []
 
 
 class UserSearch(BaseModel):

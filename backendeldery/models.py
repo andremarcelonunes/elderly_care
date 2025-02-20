@@ -245,7 +245,7 @@ class Attendant(Base):
     # Relationships (Corrected Team Relationship)
     specialties = relationship("Specialty", secondary=attendant_specialties, backref="attendants")
     function = relationship("Function", back_populates="attendants")  # One-to-many (still correct)
-    teams = relationship("Team", secondary=attendant_teams, back_populates="attendants")  # Many-to-many
+    teams = relationship("Team", secondary=attendant_teams, back_populates="attendants")   # Many-to-many
     availabilities = relationship("Availability", back_populates="attendant")
     appointments = relationship("Appointment", back_populates="attendant")
     # Foreign key for the function relationship (still NOT nullable)
