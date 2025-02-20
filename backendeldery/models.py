@@ -13,6 +13,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.ext.hybrid import hybrid_property
 
 Base = declarative_base()
 
@@ -120,9 +121,9 @@ class User(Base):
 class Function(Base):
     __tablename__ = "functions"
     __table_args__ = {"schema": "elderly_care"}
-    function_id = Column(Integer, primary_key=True, index=True)
-    function_name = Column(String(255), nullable=False, unique=True)
-    function_description = Column(Text, nullable=True)
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, unique=True)
+    description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by = Column(Integer, nullable=False)
@@ -137,6 +138,61 @@ class Function(Base):
         secondary="elderly_care.document_function",
         back_populates="functions",
     )
+
+    def __repr__(self):
+        return f"<Function(name='{self.name}')>"
+
+
+# --- Specialty (already defined, kept for completeness) ---
+attendant_specialties = Table(
+    "attendant_specialties",
+    Base.metadata,
+    Column("attendant_id", Integer,
+           ForeignKey("elderly_care.attendants.user_id", ondelete="CASCADE",
+                      onupdate="CASCADE"), primary_key=True),
+    Column("specialty_id", Integer, ForeignKey("elderly_care.specialties.id",
+                                               ondelete="CASCADE", onupdate="CASCADE"),
+           primary_key=True),
+    Column("created_at", DateTime, default=func.now()),
+    Column("updated_at", DateTime, default=func.now(), onupdate=func.now()),
+    Column("created_by", Integer, nullable=False),
+    Column("updated_by", Integer, nullable=True),
+    Column("user_ip", String, nullable=True),
+    schema="elderly_care"
+
+)
+
+
+class Specialty(Base):
+    __tablename__ = "specialties"
+    __table_args__ = {"schema": "elderly_care"}
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), nullable=False, unique=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_by = Column(Integer, nullable=False)
+    updated_by = Column(Integer, nullable=True)
+    user_ip = Column(String, nullable=True)
+
+    def __repr__(self):
+        return f"<Specialty(name='{self.name}')>"
+
+
+attendant_teams = Table(  # Association Table for Attendant-Team
+    "attendant_teams",
+    Base.metadata,
+    Column("attendant_id", Integer,
+           ForeignKey("elderly_care.attendants.user_id", ondelete="CASCADE", onupdate="CASCADE"), primary_key=True),
+    Column("team_id", Integer, ForeignKey("elderly_care.teams.team_id", ondelete="CASCADE", onupdate="CASCADE"),
+           primary_key=True),
+    Column("created_at", DateTime, default=func.now()),
+    Column("updated_at", DateTime, default=func.now(), onupdate=func.now()),
+    Column("created_by", Integer, nullable=False),
+    Column("updated_by", Integer, nullable=True),
+    Column("user_ip", String, nullable=True),
+    schema="elderly_care"
+)
 
 
 class Team(Base):
@@ -154,51 +210,74 @@ class Team(Base):
     # Relacionamento com clientes
     clients = relationship("Client", back_populates="team")
     attendants = relationship(
-        "Attendant", secondary="elderly_care.attendant_team", back_populates="teams"
+        "Attendant", secondary="elderly_care.attendant_teams", back_populates="teams"
     )
+
+    def __repr__(self):
+        return f"<Team(name='{self.name}')>"
 
 
 class Attendant(Base):
     __tablename__ = "attendants"
     __table_args__ = {"schema": "elderly_care"}
+
     user_id = Column(
-        Integer, ForeignKey("elderly_care.users.id"), index=True, primary_key=True
+        Integer, ForeignKey("elderly_care.users.id", ondelete="CASCADE",
+                            onupdate="CASCADE"), index=True,
+        primary_key=True
     )
-    function_id = Column(
-        Integer,
-        ForeignKey("elderly_care.functions.function_id"),
-        index=True,
-        nullable=True,
-    )
+    cpf = Column(String(20), nullable=False, unique=True)
+    birthday = Column(Date, nullable=True)
+    address = Column(String, nullable=True)
+    neighborhood = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    state = Column(String, nullable=True)
+    code_address = Column(String(20), nullable=True)
+    registro_conselho = Column(String(20), nullable=True)
+    nivel_experiencia = Column(String(20), nullable=True)
+    formacao = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by = Column(Integer, nullable=False)
     updated_by = Column(Integer, nullable=True)
     user_ip = Column(String, nullable=True)
 
-    # Relacionamentos
-    function = relationship("Function", back_populates="attendants")
-    teams = relationship(
-        "Team", secondary="elderly_care.attendant_team", back_populates="attendants"
-    )
+    # Relationships (Corrected Team Relationship)
+    specialties = relationship("Specialty", secondary=attendant_specialties, backref="attendants")
+    function = relationship("Function", back_populates="attendants")  # One-to-many (still correct)
+    teams = relationship("Team", secondary=attendant_teams, back_populates="attendants")   # Many-to-many
     availabilities = relationship("Availability", back_populates="attendant")
     appointments = relationship("Appointment", back_populates="attendant")
+    # Foreign key for the function relationship (still NOT nullable)
+    function_id = Column(Integer, ForeignKey("elderly_care.functions.id", ondelete="CASCADE",
+                                             onupdate="CASCADE"), index=True, nullable=False)
 
+    # Hybrid property for specialties (kept for convenience, optional)
+    @hybrid_property
+    def especialidade(self):
+        return ", ".join(spec.name for spec in self.specialties)
 
-AttendantTeam = Table(
-    "attendant_team",
-    Base.metadata,
-    Column(
-        "attendant_id",
-        Integer,
-        ForeignKey("elderly_care.attendants.user_id"),
-        primary_key=True,
-    ),
-    Column(
-        "team_id", Integer, ForeignKey("elderly_care.teams.team_id"), primary_key=True
-    ),
-    schema="elderly_care",
-)
+    @especialidade.setter
+    def especialidade(self, value):
+        # Only manipulate the relationship list, NO database interaction here.
+        specialty_names = [s.strip() for s in value.split(',')]
+        self.specialties = []  # Clear existing specialties
+        for name in specialty_names:
+            # Create an *instance* of Specialty, but don't add it to the DB yet.
+            self.specialties.append(Specialty(name=name))
+
+    @hybrid_property
+    def team_names(self):
+        return ", ".join(team.name for team in self.teams)
+
+    @team_names.setter
+    def team_names(self, value):
+        # Only manipulate the relationship list.
+        team_names = [t.strip() for t in value.split(',')]
+        self.teams = []  # Clear existing teams
+
+    def __repr__(self):
+        return f"<Attendant(user_id={self.user_id}, cpf='{self.cpf}')>"
 
 
 class Client(Base):
@@ -451,9 +530,9 @@ DocumentFunction = Table(
         primary_key=True,
     ),
     Column(
-        "function_id",
+        "id",
         Integer,
-        ForeignKey("elderly_care.functions.function_id"),
+        ForeignKey("elderly_care.functions.id"),
         primary_key=True,
     ),
     schema="elderly_care",
