@@ -1,24 +1,14 @@
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 from backendeldery.models import (
-    User, Attendant, Specialty
+    User, Attendant, Specialty, AttendantSpecialty
 )
 
 from backendeldery.schemas import (
-    UserCreate, AttendantCreate
+    UserCreate,  AttendantCreate, AttendantResponse, AttendandInfo
 )
 from .users import CRUDUser
 from .base import CRUDBase
-import logging
-
-logger = logging.getLogger("backendeldery")
-logger.setLevel(logging.INFO)
-if not logger.hasHandlers():
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(
-        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
-    logger.addHandler(console_handler)
 
 
 class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
@@ -32,7 +22,6 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
         """
         Cria um novo usuário e attendant e registra informações de auditoria.
         """
-        logger.info("Iniciando criação do user e attendant...")
 
         try:
             # Step 1: Create the User
@@ -43,7 +32,6 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
                 attendant_data = obj_in.attendant_data.model_dump()
                 specialties_list = attendant_data.pop("specialties", [])
                 # Debugging: Log the content of attendant_data
-                logger.info(f"Attendant data before creating Attendant: {attendant_data}")
 
                 # Ensure all necessary fields are included in attendant_data
                 # Add the user_id, created_by, and user_ip fields to the dictionary
@@ -55,33 +43,55 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
                 try:
                     attendant = Attendant(**attendant_data)
                 except TypeError as e:
-                    # Catch and log if the fields are missing or incorrect
-                    logger.error(f"Error while creating Attendant: {e}")
-                    raise HTTPException(status_code=500, detail=f"Error while creating Attendant: {e}")
+
+                    raise HTTPException(status_code=400, detail=f"Error while creating Attendant: {e}")
 
                 # Step 3: Add specialties if provided, avoiding duplicates
                 if specialties_list:
                     for specialty_name in specialties_list:
+                        # Try to find an existing specialty
                         specialty = db.query(Specialty).filter(Specialty.name == specialty_name).first()
                         if not specialty:
-                            specialty = Specialty(name=specialty_name)
+                            specialty = Specialty(
+                                name=specialty_name,
+                                created_by=created_by,
+                                user_ip=user_ip,
+                                updated_by=None
+                            )
                             db.add(specialty)
                             db.flush()
-                        attendant.specialties.append(specialty)
+                        # Create the association with audit data
+                        association = AttendantSpecialty(
+                            created_by=created_by,  # Use the endpoint provided user id
+                            user_ip=user_ip
+                        )
+                        association.specialty = specialty
+                        # Append the association to the attendant's association collection
+                        attendant.specialty_associations.append(association)
 
                 db.add(attendant)
 
                 db.commit()  # Commit the transaction, saving both User and Attendant
                 db.refresh(attendant)  # Retrieve the newly created attendant
+                user.attendant = attendant  # Link the Attendant to the User
+                db.commit()
+                db.refresh(user)  # Refresh the user object to include the attendant
 
             db.commit()
             db.refresh(user)  # Ensure the user is fully created and returned
-            return user
+            if user.attendant:
+                attendant_info = AttendantResponse.from_orm(user.attendant)
+                # You can then attach this data to your user response model if desired:
+                user_info = AttendandInfo.from_orm(user)
+                # For example, if you want to store it in an attribute named "attendant_data":
+                user_info.attendant_data = attendant_info
+                return user_info
+
+            return AttendandInfo.from_orm(user)
 
         except Exception as e:
             # Rollback the transaction if something goes wrong
             db.rollback()
-            logger.error(f"Erro durante a criação do user e attendant: {e}")
             raise HTTPException(
                 status_code=500, detail=f"Error to register Attendant: {str(e)}"
             )
