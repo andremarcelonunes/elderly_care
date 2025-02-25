@@ -8,6 +8,8 @@ from backendeldery.schemas import (
     UserCreate,  AttendantCreate, AttendantResponse, AttendandInfo
 )
 from .users import CRUDUser
+from .team import CRUDTeam
+from .function import CRUDFunction
 from .base import CRUDBase
 
 
@@ -15,10 +17,10 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
     def __init__(self):
         super().__init__(Attendant)
         self.crud_user = CRUDUser()
+        self.crud_function = CRUDFunction()
+        self.crud_team = CRUDTeam()
 
-    async def create(self, db: Session,
-                     obj_in: UserCreate,
-                     created_by: int, user_ip: str) -> Attendant:
+    async def create(self, db: Session, obj_in, created_by: int, user_ip: str) -> Attendant:
         """
         Cria um novo usuário e attendant e registra informações de auditoria.
         """

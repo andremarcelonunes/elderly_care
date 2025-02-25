@@ -73,6 +73,8 @@ class AttendantCreate(BaseModel):
     nivel_experiencia: Literal["junior", "pleno", "senior", "especialista"]
     formacao: Optional[str] = None
     specialties: Optional[List[str]] = []
+    team_names: Optional[List[str]] = []
+    function_names: Optional[List[str]] = []
 
     model_config = ConfigDict(from_attributes=True)
 

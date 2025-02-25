@@ -214,7 +214,7 @@ class Team(Base):
     )
 
     def __repr__(self):
-        return f"<Team(name='{self.name}')>"
+        return f"<Team(name='{self.team_name}')>"
 
 
 class Attendant(Base):
