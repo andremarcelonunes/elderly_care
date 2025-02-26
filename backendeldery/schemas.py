@@ -1,3 +1,6 @@
+from datetime import date, datetime
+from typing import Optional, Literal, Annotated, Dict, List
+
 from pydantic import (
     BaseModel,
     EmailStr,
@@ -6,8 +9,6 @@ from pydantic import (
     StringConstraints,
     ConfigDict,
 )
-from typing import Optional, Literal, Annotated, Dict, List
-from datetime import date, datetime
 
 
 # noinspection PyMethodParameters
@@ -74,7 +75,7 @@ class AttendantCreate(BaseModel):
     formacao: Optional[str] = None
     specialties: Optional[List[str]] = []
     team_names: Optional[List[str]] = []
-    function_names: Optional[List[str]] = []
+    function_names: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -91,6 +92,8 @@ class AttendantResponse(BaseModel):
     nivel_experiencia: str  # You could further restrict with Literal if needed
     formacao: Optional[str] = None
     specialty_names: List[str]
+    team_names: Optional[List[str]] = []
+    function_names: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

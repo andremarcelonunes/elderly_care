@@ -12,9 +12,9 @@ from sqlalchemy import (
     Time,
     func,
 )
-from sqlalchemy.orm import relationship, declarative_base
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import relationship, declarative_base
 
 Base = declarative_base()
 
@@ -149,8 +149,20 @@ class AttendantSpecialty(Base):
     __tablename__ = "attendant_specialties"
     __table_args__ = {"schema": "elderly_care"}
 
-    attendant_id = Column(Integer, ForeignKey("elderly_care.attendants.user_id", ondelete="CASCADE", onupdate="CASCADE"), primary_key=True)
-    specialty_id = Column(Integer, ForeignKey("elderly_care.specialties.id", ondelete="CASCADE", onupdate="CASCADE"), primary_key=True)
+    attendant_id = Column(
+        Integer,
+        ForeignKey(
+            "elderly_care.attendants.user_id", ondelete="CASCADE", onupdate="CASCADE"
+        ),
+        primary_key=True,
+    )
+    specialty_id = Column(
+        Integer,
+        ForeignKey(
+            "elderly_care.specialties.id", ondelete="CASCADE", onupdate="CASCADE"
+        ),
+        primary_key=True,
+    )
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by = Column(Integer, nullable=False)
@@ -173,26 +185,40 @@ class Specialty(Base):
     created_by = Column(Integer, nullable=False)
     updated_by = Column(Integer, nullable=True)
     user_ip = Column(String, nullable=True)
-    attendant_associations = relationship("AttendantSpecialty", back_populates="specialty")
+    attendant_associations = relationship(
+        "AttendantSpecialty", back_populates="specialty"
+    )
 
     def __repr__(self):
         return f"<Specialty(name='{self.name}')>"
 
 
-attendant_teams = Table(  # Association Table for Attendant-Team
-    "attendant_teams",
-    Base.metadata,
-    Column("attendant_id", Integer,
-           ForeignKey("elderly_care.attendants.user_id", ondelete="CASCADE", onupdate="CASCADE"), primary_key=True),
-    Column("team_id", Integer, ForeignKey("elderly_care.teams.team_id", ondelete="CASCADE", onupdate="CASCADE"),
-           primary_key=True),
-    Column("created_at", DateTime, default=func.now()),
-    Column("updated_at", DateTime, default=func.now(), onupdate=func.now()),
-    Column("created_by", Integer, nullable=False),
-    Column("updated_by", Integer, nullable=True),
-    Column("user_ip", String, nullable=True),
-    schema="elderly_care"
-)
+class AttendantTeam(Base):
+    __tablename__ = "attendant_teams"
+    __table_args__ = {"schema": "elderly_care"}
+
+    attendant_id = Column(
+        Integer,
+        ForeignKey(
+            "elderly_care.attendants.user_id", ondelete="CASCADE", onupdate="CASCADE"
+        ),
+        primary_key=True,
+    )
+    team_id = Column(
+        Integer,
+        ForeignKey(
+            "elderly_care.teams.team_id", ondelete="CASCADE", onupdate="CASCADE"
+        ),
+        primary_key=True,
+    )
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_by = Column(Integer, nullable=False)
+    updated_by = Column(Integer, nullable=True)
+    user_ip = Column(String, nullable=True)
+    # Relationships if needed:
+    attendant = relationship("Attendant", back_populates="team_associations")
+    team = relationship("Team", back_populates="attendant_associations")
 
 
 class Team(Base):
@@ -209,9 +235,8 @@ class Team(Base):
 
     # Relacionamento com clientes
     clients = relationship("Client", back_populates="team")
-    attendants = relationship(
-        "Attendant", secondary="elderly_care.attendant_teams", back_populates="teams"
-    )
+    attendant_associations = relationship("AttendantTeam", back_populates="team")
+    attendants = association_proxy("attendant_associations", "attendant")
 
     def __repr__(self):
         return f"<Team(name='{self.team_name}')>"
@@ -222,9 +247,10 @@ class Attendant(Base):
     __table_args__ = {"schema": "elderly_care"}
 
     user_id = Column(
-        Integer, ForeignKey("elderly_care.users.id", ondelete="CASCADE",
-                            onupdate="CASCADE"), index=True,
-        primary_key=True
+        Integer,
+        ForeignKey("elderly_care.users.id", ondelete="CASCADE", onupdate="CASCADE"),
+        index=True,
+        primary_key=True,
     )
     cpf = Column(String(20), nullable=False, unique=True)
     birthday = Column(Date, nullable=True)
@@ -244,16 +270,27 @@ class Attendant(Base):
 
     # Relationships (Corrected Team Relationship)
     # Relationship to the association object:
-    specialty_associations = relationship("AttendantSpecialty", back_populates="attendant")
+    specialty_associations = relationship(
+        "AttendantSpecialty", back_populates="attendant"
+    )
     # Association proxy to access specialties directly:
     specialties = association_proxy("specialty_associations", "specialty")
-    function = relationship("Function", back_populates="attendants")  # One-to-many (still correct)
-    teams = relationship("Team", secondary=attendant_teams, back_populates="attendants")   # Many-to-many
+    function = relationship(
+        "Function", back_populates="attendants"
+    )  # One-to-many (still correct)
+    team_associations = relationship(
+        "AttendantTeam", back_populates="attendant", cascade="all, delete-orphan"
+    )
+    teams = association_proxy("team_associations", "team")
     availabilities = relationship("Availability", back_populates="attendant")
     appointments = relationship("Appointment", back_populates="attendant")
     # Foreign key for the function relationship (still NOT nullable)
-    function_id = Column(Integer, ForeignKey("elderly_care.functions.id", ondelete="CASCADE",
-                                             onupdate="CASCADE"), index=True, nullable=True)
+    function_id = Column(
+        Integer,
+        ForeignKey("elderly_care.functions.id", ondelete="CASCADE", onupdate="CASCADE"),
+        index=True,
+        nullable=True,
+    )
 
     # Hybrid property for specialties (kept for convenience, optional)
     @hybrid_property
@@ -263,7 +300,7 @@ class Attendant(Base):
     @specialty_names.setter
     def specialty_names(self, value):
         # Only manipulate the relationship list, NO database interaction here.
-        specialty_names = [s.strip() for s in value.split(',')]
+        specialty_names = [s.strip() for s in value.split(",")]
         self.specialties = []  # Clear existing specialties
         for name in specialty_names:
             # Create an *instance* of Specialty, but don't add it to the DB yet.
@@ -276,7 +313,7 @@ class Attendant(Base):
     @team_names.setter
     def team_names(self, value):
         # Only manipulate the relationship list.
-        team_names = [t.strip() for t in value.split(',')]
+        team_names = [t.strip() for t in value.split(",")]
         self.teams = []  # Clear existing teams
 
     def __repr__(self):

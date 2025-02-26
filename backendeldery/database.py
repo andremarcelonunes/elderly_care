@@ -1,13 +1,14 @@
+import logging
 import time
+
 from sqlalchemy import create_engine, text, MetaData
 from sqlalchemy.orm import sessionmaker, declarative_base
-from backendeldery.config import settings
-import logging
 
+from backendeldery.config import settings
 
 logging.basicConfig()
-logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
-logging.getLogger("sqlalchemy.pool").setLevel(logging.INFO)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.CRITICAL)
+logging.getLogger("sqlalchemy.pool").setLevel(logging.CRITICAL)
 
 
 class Database:

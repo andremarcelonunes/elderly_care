@@ -1,9 +1,11 @@
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.future import select
-from sqlalchemy.exc import NoResultFound
-from sqlalchemy import update
+import logging
+
 from fastapi import HTTPException
-from backendeldery.utils import hash_password
+from sqlalchemy import update
+from sqlalchemy.exc import NoResultFound
+from sqlalchemy.future import select
+from sqlalchemy.orm import Session, joinedload
+
 from backendeldery.models import (
     User,
     Client,
@@ -17,11 +19,11 @@ from backendeldery.schemas import (
     SubscriberInfo,
     UserUpdate,
 )
+from backendeldery.utils import hash_password
 from .base import CRUDBase
-import logging
 
 logger = logging.getLogger("backendeldery")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.CRITICAL)
 if not logger.hasHandlers():
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(
@@ -34,7 +36,9 @@ class CRUDUser(CRUDBase[User, UserCreate]):
     def __init__(self):
         super().__init__(User)
 
-    async def create(self, db: Session, obj_in: dict, created_by: int, user_ip: str) -> User:
+    async def create(
+        self, db: Session, obj_in: dict, created_by: int, user_ip: str
+    ) -> User:
         """
         Cria um novo usuário e registra informações de auditoria.
         """
@@ -58,12 +62,14 @@ class CRUDClient(CRUDBase):
     def __init__(self):
         super().__init__(Client)
 
-    async def create(self,
-                     db: Session,
-                     user: User,
-                     obj_in: SubscriberCreate,
-                     created_by: int,
-                     user_ip: str,):
+    async def create(
+        self,
+        db: Session,
+        user: User,
+        obj_in: SubscriberCreate,
+        created_by: int,
+        user_ip: str,
+    ):
         """
         Cria um cliente e registra informações de auditoria.
         """
@@ -83,9 +89,9 @@ class CRUDSpecializedUser:
         self.crud_user = CRUDUser()
         self.crud_client = CRUDClient()
 
-    async def create_subscriber(self, db: Session, user_data: dict,
-                                created_by: int, user_ip: str
-                                ):
+    async def create_subscriber(
+        self, db: Session, user_data: dict, created_by: int, user_ip: str
+    ):
         """
         Cria um assinante e associa os dados do usuário em uma única transação.
         """
@@ -94,12 +100,13 @@ class CRUDSpecializedUser:
                 db=db, obj_in=user_data, created_by=created_by, user_ip=user_ip
             )
 
-            await crud_client.create(db=db,
-                                     user=user,
-                                     created_by=created_by,
-                                     user_ip=user_ip,
-                                     obj_in=SubscriberCreate(**user_data["client_data"]),
-                                     )
+            await crud_client.create(
+                db=db,
+                user=user,
+                created_by=created_by,
+                user_ip=user_ip,
+                obj_in=SubscriberCreate(**user_data["client_data"]),
+            )
 
             db.commit()  # Commit the transaction
 
@@ -176,12 +183,14 @@ class CRUDSpecializedUser:
                 detail=f"Error retrieving user with client data: {str(e)}",
             )
 
-    async def update_user_and_client(self, db_session: Session,
-                                     user_id: int,
-                                     user_update: UserUpdate,
-                                     user_ip: str,
-                                     updated_by: int,
-                                     ):
+    async def update_user_and_client(
+        self,
+        db_session: Session,
+        user_id: int,
+        user_update: UserUpdate,
+        user_ip: str,
+        updated_by: int,
+    ):
         try:
             # Fetch the user and client in a single query
             result = db_session.execute(
@@ -245,12 +254,12 @@ class CRUDAssisted:
         self.model = client_association
 
     async def create_association(
-            self,
-            db: Session,
-            subscriber_id: int,
-            assisted_id: int,
-            created_by: int,
-            user_ip: str,
+        self,
+        db: Session,
+        subscriber_id: int,
+        assisted_id: int,
+        created_by: int,
+        user_ip: str,
     ):
         """
         Creates an association in the client_association table.
@@ -297,11 +306,11 @@ class CRUDContact:
         self.model = client_contact_association
 
     async def create_contact(
-            self,
-            db: Session,
-            user_data: dict,
-            created_by: int,
-            user_ip: str,
+        self,
+        db: Session,
+        user_data: dict,
+        created_by: int,
+        user_ip: str,
     ):
         """
         Creates a contact
@@ -325,12 +334,12 @@ class CRUDContact:
             raise RuntimeError(f"Error creating contact: {str(e)}")
 
     async def create_contact_association(
-            self,
-            db: Session,
-            client_id: int,
-            user_contact_id: int,
-            created_by: int,
-            user_ip: str,
+        self,
+        db: Session,
+        client_id: int,
+        user_contact_id: int,
+        created_by: int,
+        user_ip: str,
     ):
         """
         Associate a contact  to some client.
@@ -356,8 +365,7 @@ class CRUDContact:
                 f"Error creating association between contact and client: {str(e)}"
             )
 
-    async def get_contacts_by_client(self,
-                                     db: Session, client_id: int):
+    async def get_contacts_by_client(self, db: Session, client_id: int):
         """
         Retrieves all contacts for a given client.
         """
@@ -388,7 +396,9 @@ class CRUDContact:
 
         return filtered_clients
 
-    async def delete_contact_association(self, db: Session, client_id: int, contact_id: int):
+    async def delete_contact_association(
+        self, db: Session, client_id: int, contact_id: int
+    ):
         """
         Deletes the association record for a given client and contact.
         Returns the number of rows deleted.
@@ -397,7 +407,7 @@ class CRUDContact:
             db.query(client_contact_association)
             .filter(
                 client_contact_association.c.user_client_id == client_id,
-                client_contact_association.c.user_contact_id == contact_id
+                client_contact_association.c.user_contact_id == contact_id,
             )
             .delete(synchronize_session=False)
         )
@@ -422,9 +432,9 @@ class CRUDContact:
                 return contact
         return None
 
-    async def delete_contact_relation(self, db: Session, client_id: int,
-                                      contact_id: int, user_ip: str,
-                                      x_user_id: int):
+    async def delete_contact_relation(
+        self, db: Session, client_id: int, contact_id: int, user_ip: str, x_user_id: int
+    ):
         """
         Updates the association with audit data (if needed) and then
         deletes the association between the specified client and contact.
@@ -436,14 +446,18 @@ class CRUDContact:
             db.query(client_contact_association)
             .filter(
                 client_contact_association.c.user_client_id == client_id,
-                client_contact_association.c.user_contact_id == contact_id
+                client_contact_association.c.user_contact_id == contact_id,
             )
-            .update({"updated_by": x_user_id, "user_ip": user_ip}, synchronize_session=False)
+            .update(
+                {"updated_by": x_user_id, "user_ip": user_ip}, synchronize_session=False
+            )
         )
         db.commit()
 
         # Delete the association row.
-        deleted_count = await crud_contact.delete_contact_association(db, client_id, contact_id)
+        deleted_count = await crud_contact.delete_contact_association(
+            db, client_id, contact_id
+        )
         if deleted_count == 0:
             raise ValueError("Association not found")
 

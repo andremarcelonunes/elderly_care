@@ -1,6 +1,7 @@
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+
 from backendeldery.crud.attendant import CRUDAttendant
 from backendeldery.models import User
 from backendeldery.schemas import UserCreate, AttendantCreate
@@ -36,8 +37,10 @@ def user_data():
             cpf="12345678900",
             birthday="1980-01-01",
             nivel_experiencia="senior",
-            specialties=["Cardiology"]
-        )
+            specialties=["Cardiology"],
+            team_names=["Team A"],
+            function_names="Doctor",
+        ),
     )
 
 
@@ -54,7 +57,7 @@ async def test_create_attendant_success(db_session, user_data, mocker):
         email=user_data.email,
         phone=user_data.phone,
         name=user_data.name,
-        role=user_data.role
+        role=user_data.role,
     )
     dummy_user.attendant = None
     mocker.patch.object(crud_attendant.crud_user, "create", return_value=dummy_user)
@@ -69,7 +72,9 @@ async def test_create_attendant_success(db_session, user_data, mocker):
 @pytest.mark.asyncio
 async def test_create_attendant_exception(db_session, user_data, mocker):
     crud_attendant = CRUDAttendant()
-    mocker.patch.object(crud_attendant.crud_user, "create", side_effect=Exception("Database error"))
+    mocker.patch.object(
+        crud_attendant.crud_user, "create", side_effect=Exception("Database error")
+    )
     with pytest.raises(HTTPException) as exc_info:
         await crud_attendant.create(
             db=db_session, obj_in=user_data, created_by=1, user_ip="127.0.0.1"
@@ -107,7 +112,7 @@ async def test_create_attendant_new_specialty(db_session, user_data, mocker):
         email=user_data.email,
         phone=user_data.phone,
         name=user_data.name,
-        role=user_data.role
+        role=user_data.role,
     )
     dummy_user.attendant = None
     mocker.patch.object(crud_attendant.crud_user, "create", return_value=dummy_user)
@@ -118,3 +123,61 @@ async def test_create_attendant_new_specialty(db_session, user_data, mocker):
     # Directly check the specialty_names list.
     assert created_user.attendant_data is not None
     assert "New Specialty" in created_user.attendant_data.specialty_names
+
+
+@pytest.mark.asyncio
+async def test_create_attendant_with_new_team(db_session, user_data, mocker):
+    # Modify the attendant_data to include a new team.
+    user_data.attendant_data.team_names = ["New Team"]
+    dummy_query = mocker.MagicMock()
+    # Simulate team not found.
+    dummy_query.filter.return_value.first.return_value = None
+    mocker.patch.object(db_session, "query", return_value=dummy_query)
+    crud_attendant = CRUDAttendant()
+
+    # Patch user creation to return a dummy user with valid id, name, and role.
+    dummy_user = User(
+        id=1,
+        email=user_data.email,
+        phone=user_data.phone,
+        name=user_data.name,
+        role=user_data.role,
+    )
+    dummy_user.attendant = None
+    mocker.patch.object(crud_attendant.crud_user, "create", return_value=dummy_user)
+
+    created_user = await crud_attendant.create(
+        db=db_session, obj_in=user_data, created_by=1, user_ip="127.0.0.1"
+    )
+    # Directly check the team_names list.
+    assert created_user.attendant_data is not None
+    assert "New Team" in created_user.attendant_data.team_names
+
+
+@pytest.mark.asyncio
+async def test_create_attendant_with_new_function(db_session, user_data, mocker):
+    # Modify the attendant_data to include a new function.
+    user_data.attendant_data.function_names = ["New Function"]
+    dummy_query = mocker.MagicMock()
+    # Simulate function not found.
+    dummy_query.filter.return_value.first.return_value = None
+    mocker.patch.object(db_session, "query", return_value=dummy_query)
+    crud_attendant = CRUDAttendant()
+
+    # Patch user creation to return a dummy user with valid id, name, and role.
+    dummy_user = User(
+        id=1,
+        email=user_data.email,
+        phone=user_data.phone,
+        name=user_data.name,
+        role=user_data.role,
+    )
+    dummy_user.attendant = None
+    mocker.patch.object(crud_attendant.crud_user, "create", return_value=dummy_user)
+
+    created_user = await crud_attendant.create(
+        db=db_session, obj_in=user_data, created_by=1, user_ip="127.0.0.1"
+    )
+    # Directly check the function_names list.
+    assert created_user.attendant_data is not None
+    assert "New Function" in created_user.attendant_data.function_names
