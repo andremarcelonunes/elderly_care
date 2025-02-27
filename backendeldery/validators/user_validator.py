@@ -96,7 +96,7 @@ class UserValidator:
             raise HTTPException(status_code=422, detail="This cpf already exists")
 
         if user_data["email"] is not None:
-            logger.info(f"Checando user com email: %s", user_data["email"])
+            logger.info("Checando user com email: %s", user_data["email"])
             existing_client_with_email = (
                 db.query(User).filter(User.email == user_data["email"]).first()
             )
