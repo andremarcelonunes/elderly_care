@@ -58,7 +58,7 @@ class UserValidator:
             )
             .first()
         )
-        logger.info(f"Existing user: %s", existing_user)
+        logger.info("Existing user: %s", existing_user)
         if user_data["client_data"] is None:
             raise HTTPException(status_code=400, detail="You must inform client data")
 
@@ -100,11 +100,11 @@ class UserValidator:
             existing_client_with_email = (
                 db.query(User).filter(User.email == user_data["email"]).first()
             )
-            logger.info(f"Email existente: %s", existing_client_with_email)
+            logger.info("Email existente: %s", existing_client_with_email)
             existing_client_with_phone = (
                 db.query(User).filter(User.phone == user_data["phone"]).first()
             )
-            logger.info(f"Telefone existente: %s", existing_client_with_email)
+            logger.info("Telefone existente: %s", existing_client_with_email)
         else:
             existing_client_with_email = False
             existing_client_with_phone = (
@@ -113,7 +113,7 @@ class UserValidator:
                 .filter(User.phone == user_data["phone"])
                 .first()
             )
-        logger.info(f"Checando user com email: %s", existing_client_with_email)
+        logger.info("Checando user com email: %s", existing_client_with_email)
         if existing_client_with_email or existing_client_with_phone:
             raise HTTPException(
                 status_code=422,
