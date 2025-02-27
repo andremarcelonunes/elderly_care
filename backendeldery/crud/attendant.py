@@ -43,7 +43,7 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
         try:
             # Step 1: Create the User
             user = await self.crud_user.create(db, obj_in.dict(), created_by, user_ip)
-            logger.info(f"User created: %s", user)
+            logger.info("User created: %s", user)
 
             # Step 2: Process attendant data if needed
             if obj_in.role == "attendant" and obj_in.attendant_data:
@@ -136,10 +136,10 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
         created_by: int,
         user_ip: str,
     ):
-        logger.info(f"Team names: %s", team_names)
+        logger.info("Team names: %s", team_names)
         for t_name in team_names:
             team = await self.crud_team.get_by_name(db, t_name)
-            logger.info(f"Team returned from get_by_name: %s", team)
+            logger.info("Team returned from get_by_name: %s", team)
             if not team:
                 team = await self.crud_team.create(
                     db,
@@ -148,11 +148,11 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
                     created_by=created_by,
                     user_ip=user_ip,
                 )
-                logger.info(f"Team created: %s", team)
+                logger.info("Team created: %s", team)
             team_association = AttendantTeam(
                 team=team, created_by=created_by, user_ip=user_ip
             )
-            logger.info(f"Adding team association: %s", team_association)
+            logger.info("Adding team association: %s", team_association)
             attendant.team_associations.append(team_association)
             db.add(team_association)
 
@@ -165,9 +165,9 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
         user_ip: str,
     ):
         if function_name:
-            logger.info(f"Processing function: %s", function_name)
+            logger.info("Processing function: %s", function_name)
             func_obj = await self.crud_function.get_by_name(db, function_name)
-            logger.info(f"Function returned from get_by_name: %s", func_obj)
+            logger.info("Function returned from get_by_name: %s", func_obj)
             if not func_obj:
                 func_obj = await self.crud_function.create(
                     db,
@@ -176,7 +176,7 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
                     created_by=created_by,
                     user_ip=user_ip,
                 )
-                logger.info(f"Function created: %s", func_obj)
+                logger.info("Function created: %s", func_obj)
             attendant.function = func_obj
 
     def _commit_and_refresh(self, db: Session, attendant: Attendant, user):
@@ -201,6 +201,6 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
             user_info.attendant_data.function_names = (
                 user.attendant.function.name if user.attendant.function else None
             )
-            logger.info(f"Returning user_info: %s", user_info)
+            logger.info("Returning user_info: %s", user_info)
             return user_info
         return AttendandInfo.model_validate(user)

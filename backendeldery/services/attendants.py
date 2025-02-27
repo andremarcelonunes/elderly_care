@@ -19,7 +19,6 @@ class AttendantService:
             # Validate the attendant data using the model instance (not a dict)
             UserValidator.validate_user(db, user_data)
             AttendantValidator.validate_attendant(db, user_data.attendant_data)
-
             # Call the CRUD method to create the attendant
             return await CRUDAttendant().create(
                 db=db,
