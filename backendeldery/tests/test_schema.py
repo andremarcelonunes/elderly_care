@@ -1,6 +1,6 @@
 import pytest
 from pydantic import BaseModel, ValidationError
-from backendeldery.schemas import UserUpdate, ClientUpdate, SubscriberCreate, UserCreate
+from backendeldery.schemas import UserUpdate, ClientUpdate, SubscriberCreate, UserCreate, AttendantCreate
 
 
 def test_check_extra_fields_user():
@@ -116,3 +116,49 @@ def test_user_create_invalid_phone():
         )
     # Adjusted the expected substring to match the actual error message.
     assert "String should match pattern" in str(exc_info.value)
+
+
+def test_user_create_attendant_missing_attendant_data():
+    with pytest.raises(ValidationError) as exc_info:
+        UserCreate(
+            name="John Doe",
+            role="attendant",
+            phone="+123456789",
+            email="john.doe@example.com",
+            password="password123"
+        )
+    assert "attendant_data is required when role is 'attendant'" in str(exc_info.value)
+
+
+def test_user_create_attendant_missing_email():
+    with pytest.raises(ValidationError) as exc_info:
+        UserCreate(
+            name="John Doe",
+            role="attendant",
+            phone="+123456789",
+            password="password123",
+            attendant_data=AttendantCreate(
+                cpf="12345678900",
+                birthday="1980-01-01",
+                nivel_experiencia="senior",
+                specialties=["Cardiology"]
+            )
+        )
+    assert "email is required when role is 'attendant'" in str(exc_info.value)
+
+
+def test_user_create_attendant_missing_password():
+    with pytest.raises(ValidationError) as exc_info:
+        UserCreate(
+            name="John Doe",
+            role="attendant",
+            phone="+123456789",
+            email="john.doe@example.com",
+            attendant_data=AttendantCreate(
+                cpf="12345678900",
+                birthday="1980-01-01",
+                nivel_experiencia="senior",
+                specialties=["Cardiology"]
+            )
+        )
+    assert "password is required when role is 'attendant'" in str(exc_info.value)

@@ -1,19 +1,32 @@
+import logging
+
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
+
 from backendeldery.crud.users import crud_specialized_user, crud_assisted, crud_contact
 from backendeldery.schemas import UserCreate, UserUpdate, UserResponse
 from backendeldery.validators.user_validator import UserValidator
-from fastapi import HTTPException
+
+logger = logging.getLogger("backendeldery")
+logger.setLevel(logging.CRITICAL)
+if not logger.hasHandlers():
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
+    logger.addHandler(console_handler)
 
 
 class UserService:
     @staticmethod
     async def register_client(
-            db: Session, user_data: UserCreate, created_by: int, user_ip: str
+        db: Session, user_data: UserCreate, created_by: int, user_ip: str
     ):
         """
         Registra um cliente no sistema.
         """
         try:
+            logger.info("Entering register_client method")
             UserValidator.validate_subscriber(db, user_data.model_dump())
             return await crud_specialized_user.create_subscriber(
                 db=db,
@@ -46,7 +59,9 @@ class UserService:
         Get subscriber information by user ID.
         """
         try:
-            user = await crud_specialized_user.get_user_with_client(db=db, user_id=user_id)
+            user = await crud_specialized_user.get_user_with_client(
+                db=db, user_id=user_id
+            )
             if user:
                 return user
             return None
@@ -57,11 +72,11 @@ class UserService:
 
     @staticmethod
     async def update_subscriber(
-            db: Session,
-            user_id: int,
-            user_update: UserUpdate,
-            user_ip: str,
-            updated_by: int,
+        db: Session,
+        user_id: int,
+        user_update: UserUpdate,
+        user_ip: str,
+        updated_by: int,
     ):
         """
         Serviço que chama o CRUD para atualizar um usuário e seu cliente.
@@ -99,11 +114,11 @@ class UserService:
 
     @staticmethod
     async def create_association_assisted(
-            db: Session,
-            subscriber_id: int,
-            assisted_id: int,
-            user_ip: str,
-            created_by: int,
+        db: Session,
+        subscriber_id: int,
+        assisted_id: int,
+        user_ip: str,
+        created_by: int,
     ):
         """
         Creates an association in the client_association table and registers a new
@@ -128,7 +143,9 @@ class UserService:
         Retrieves the assisted clients for a given subscriber.
         """
         try:
-            return await crud_assisted.get_assisted_clients_by_subscriber(db, subscriber_id)
+            return await crud_assisted.get_assisted_clients_by_subscriber(
+                db, subscriber_id
+            )
         except HTTPException as e:
             raise e
         except ValueError as e:
@@ -138,10 +155,10 @@ class UserService:
 
     @staticmethod
     async def register_contact(
-            db: Session,
-            user_data: UserCreate,
-            created_by: int,
-            user_ip: str,
+        db: Session,
+        user_data: UserCreate,
+        created_by: int,
+        user_ip: str,
     ):
         """
         Registers a contact in the system.
@@ -176,11 +193,11 @@ class UserService:
 
     @staticmethod
     async def create_contact_association(
-            db: Session,
-            client_id: int,
-            user_contact_id: int,
-            created_by: int,
-            user_ip: str,
+        db: Session,
+        client_id: int,
+        user_contact_id: int,
+        created_by: int,
+        user_ip: str,
     ):
         """
         Creates an association between a contact and a client.
@@ -237,8 +254,9 @@ class UserService:
             raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
     @staticmethod
-    async def delete_contact_relation(db: Session, client_id: int,
-                                      contact_id: int, user_ip: str, x_user_id: int):
+    async def delete_contact_relation(
+        db: Session, client_id: int, contact_id: int, user_ip: str, x_user_id: int
+    ):
         """
         Deletes the association between a given client and contact.
         Before deletion, updates the association row with the audit data
@@ -247,9 +265,16 @@ class UserService:
         it is deleted.
         """
         try:
-            UserValidator.validate_deletion_contact_association(db, client_id, contact_id, x_user_id)
-            await crud_contact.delete_contact_relation(db=db, client_id=client_id, contact_id=contact_id,
-                                                       user_ip=user_ip, x_user_id=x_user_id)
+            UserValidator.validate_deletion_contact_association(
+                db, client_id, contact_id, x_user_id
+            )
+            await crud_contact.delete_contact_relation(
+                db=db,
+                client_id=client_id,
+                contact_id=contact_id,
+                user_ip=user_ip,
+                x_user_id=x_user_id,
+            )
             return {"message": "Contact association deleted successfully"}
         except HTTPException as e:
             raise e

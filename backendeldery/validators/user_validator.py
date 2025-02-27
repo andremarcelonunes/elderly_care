@@ -1,5 +1,8 @@
+import logging
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+
 from backendeldery.models import (
     User,
     Client,
@@ -8,15 +11,28 @@ from backendeldery.models import (
 )
 from backendeldery.schemas import UserCreate, SubscriberCreate
 
+logger = logging.getLogger("backendeldery")
+logger.setLevel(logging.CRITICAL)
+if not logger.hasHandlers():
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
+    logger.addHandler(console_handler)
+
 
 class UserValidator:
     @staticmethod
     def validate_user(db: Session, user_data: UserCreate):
-        if (user_data.email and
-                db.query(User).filter(User.email == user_data.email).first()):
+        if (
+            user_data.email
+            and db.query(User).filter(User.email == user_data.email).first()
+        ):
             raise HTTPException(status_code=422, detail="Email already exists")
-        if (user_data.phone and
-                db.query(User).filter(User.phone == user_data.phone).first()):
+        if (
+            user_data.phone
+            and db.query(User).filter(User.phone == user_data.phone).first()
+        ):
             raise HTTPException(status_code=422, detail="Phone already exists")
 
     @staticmethod
@@ -33,33 +49,38 @@ class UserValidator:
 
     @staticmethod
     def validate_subscriber(db: Session, user_data: dict):
-        # Check if a user with the same email and phone already exists
+        # Check if a user with the same email or phone already exists
+        logger.info("Entering validate_subscriber method")
         existing_user = (
             db.query(User)
-            .filter(User.email == user_data["email"], User.phone == user_data["phone"])
+            .filter(
+                (User.email == user_data["email"]) | (User.phone == user_data["phone"])
+            )
             .first()
         )
+        logger.info("Existing user: %s", existing_user)
         if user_data["client_data"] is None:
             raise HTTPException(status_code=400, detail="You must inform client data")
 
         if (
-                db.query(Client)
-                .join(User)
-                .filter(
-                    (Client.cpf == user_data["client_data"]["cpf"])
-                    & (User.email == user_data["email"])
-                    & (User.phone == user_data["phone"])
-                )
-                .first()
+            db.query(Client)
+            .join(User)
+            .filter(
+                (Client.cpf == user_data["client_data"]["cpf"])
+                & (User.email == user_data["email"])
+                & (User.phone == user_data["phone"])
+            )
+            .first()
         ):
             raise HTTPException(status_code=422, detail="The client already exists")
+
         if existing_user:
             existing_client = (
                 db.query(Client).filter(Client.user_id == existing_user.id).first()
             )
             if (
-                    existing_client
-                    and existing_client.cpf != user_data["client_data"]["cpf"]
+                existing_client
+                and existing_client.cpf != user_data["client_data"]["cpf"]
             ):
                 raise HTTPException(
                     status_code=422,
@@ -72,21 +93,18 @@ class UserValidator:
             .first()
         )
         if existing_client:
-            raise HTTPException(status_code=422, detail="This cpf  already exists")
+            raise HTTPException(status_code=422, detail="This cpf already exists")
 
         if user_data["email"] is not None:
+            logger.info("Checando user com email: %s", user_data["email"])
             existing_client_with_email = (
-                db.query(Client)
-                .join(User)
-                .filter(User.email == user_data["email"])
-                .first()
+                db.query(User).filter(User.email == user_data["email"]).first()
             )
+            logger.info("Email existente: %s", existing_client_with_email)
             existing_client_with_phone = (
-                db.query(Client)
-                .join(User)
-                .filter(User.phone == user_data["phone"])
-                .first()
+                db.query(User).filter(User.phone == user_data["phone"]).first()
             )
+            logger.info("Telefone existente: %s", existing_client_with_email)
         else:
             existing_client_with_email = False
             existing_client_with_phone = (
@@ -95,7 +113,7 @@ class UserValidator:
                 .filter(User.phone == user_data["phone"])
                 .first()
             )
-
+        logger.info("Checando user com email: %s", existing_client_with_email)
         if existing_client_with_email or existing_client_with_phone:
             raise HTTPException(
                 status_code=422,
@@ -104,7 +122,7 @@ class UserValidator:
 
     @staticmethod
     def validate_association_assisted(
-            db: Session, subscriber_id: int, assisted_id: int
+        db: Session, subscriber_id: int, assisted_id: int
     ):
         subscriber = db.query(User).filter(User.id == subscriber_id).one_or_none()
         if not subscriber:
@@ -202,7 +220,7 @@ class UserValidator:
 
     @staticmethod
     def validate_deletion_contact_association(
-            db: Session, client_id: int, contact_id: int, x_user_id: int
+        db: Session, client_id: int, contact_id: int, x_user_id: int
     ):
         """
         Validates whether a contact association can be deleted.
@@ -221,5 +239,5 @@ class UserValidator:
         if client_id != x_user_id:
             raise HTTPException(
                 status_code=403,
-                detail="You are not authorized to delete this association"
+                detail="You are not authorized to delete this association",
             )

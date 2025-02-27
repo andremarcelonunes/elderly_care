@@ -4,6 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import ValidationError
 from backendeldery.routers.users import router as users_router
+from backendeldery.routers.attendant import router as attendants_router
 
 app = FastAPI()
 
@@ -51,3 +52,4 @@ async def generic_exception_handler(request, exc):
 
 
 app.include_router(users_router, prefix="/api/v1", tags=["users"])
+app.include_router(attendants_router, prefix="/api/v1", tags=["attendants"])

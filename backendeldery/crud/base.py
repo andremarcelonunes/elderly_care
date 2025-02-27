@@ -1,8 +1,9 @@
-from sqlalchemy.orm import Session
 from typing import Type, TypeVar, Generic, Optional
-from fastapi import HTTPException
-from backendeldery.utils import obj_to_dict
 
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
+from backendeldery.utils import obj_to_dict
 
 ModelType = TypeVar("ModelType")
 
@@ -17,14 +18,16 @@ class CRUDBase(Generic[ModelType, CreateSchemaType]):
         obj = db.query(self.model).filter(self.model.id == id).first()
         return obj_to_dict(obj) if obj else None
 
-    async def create(self, db: Session, obj_in: CreateSchemaType) -> dict:
+    async def create(self, db: Session, obj_in: CreateSchemaType, **kwargs) -> dict:
         obj_data = self.model(**obj_in.dict())
         db.add(obj_data)
         db.commit()
         db.refresh(obj_data)
         return obj_to_dict(obj_data)
 
-    async def update(self, db: Session, id: int, obj_in: CreateSchemaType) -> dict:
+    async def update(
+        self, db: Session, id: int, obj_in: CreateSchemaType, **kwargs
+    ) -> dict:
         # Busca o objeto no banco de dados
         db_obj = db.query(self.model).filter(self.model.id == id).first()
         if not db_obj:

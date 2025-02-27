@@ -1,3 +1,6 @@
+from datetime import date, datetime
+from typing import Optional, Literal, Annotated, Dict, List
+
 from pydantic import (
     BaseModel,
     EmailStr,
@@ -6,8 +9,6 @@ from pydantic import (
     StringConstraints,
     ConfigDict,
 )
-from typing import Optional, Literal, Annotated, Dict, List
-from datetime import date, datetime
 
 
 # noinspection PyMethodParameters
@@ -73,6 +74,28 @@ class AttendantCreate(BaseModel):
     nivel_experiencia: Literal["junior", "pleno", "senior", "especialista"]
     formacao: Optional[str] = None
     specialties: Optional[List[str]] = []
+    team_names: Optional[List[str]] = []
+    function_names: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AttendantResponse(BaseModel):
+    cpf: str
+    address: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    code_address: Optional[str] = None
+    birthday: date
+    registro_conselho: Optional[str] = None
+    nivel_experiencia: str  # You could further restrict with Literal if needed
+    formacao: Optional[str] = None
+    specialty_names: List[str]
+    team_names: Optional[List[str]] = []
+    function_names: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserSearch(BaseModel):
@@ -113,6 +136,18 @@ class UserInfo(BaseModel):
     role: str
     active: Optional[bool] = True
     client_data: Optional[SubscriberInfo] = None
+    attendant_data: Optional[AttendantResponse] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AttendandInfo(BaseModel):
+    id: int
+    name: str
+    email: Optional[EmailStr] = None  # Optional by default.
+    phone: str
+    role: str
+    active: Optional[bool] = True
+    attendant_data: Optional[AttendantResponse] = None
     model_config = ConfigDict(from_attributes=True)
 
 
