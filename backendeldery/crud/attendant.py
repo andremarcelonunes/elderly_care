@@ -1,7 +1,6 @@
 import logging
 
 from fastapi import HTTPException
-from sqlalchemy import cast, String
 from sqlalchemy.orm import Session
 
 from backendeldery.models import (
@@ -39,118 +38,169 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
 
     async def create(
         self, db: Session, obj_in, created_by: int, user_ip: str
-    ) -> Attendant:
+    ) -> AttendandInfo:
         logger.info("Creating attendant")
         try:
             # Step 1: Create the User
             user = await self.crud_user.create(db, obj_in.dict(), created_by, user_ip)
             logger.info(f"User created: %s", user)
+
+            # Step 2: Process attendant data if needed
             if obj_in.role == "attendant" and obj_in.attendant_data:
-                attendant_data = obj_in.attendant_data.model_dump()
-                specialties_list = attendant_data.pop("specialties", [])
-                team_names = attendant_data.pop("team_names", [])
-                function_name = attendant_data.pop("function_names", None)
-                attendant_data["user_id"] = user.id
-                attendant_data["created_by"] = created_by
-                attendant_data["user_ip"] = user_ip
-
-                # Now create the Attendant instance using the provided fields
-                try:
-                    attendant = Attendant(**attendant_data)
-                except TypeError as e:
-                    raise HTTPException(
-                        status_code=400, detail=f"Error while creating Attendant: {e}"
-                    )
-
-                # Step 3: Add specialties if provided, avoiding duplicates
-                if specialties_list:
-                    for specialty_name in specialties_list:
-                        specialty = (
-                            db.query(Specialty)
-                            .filter(cast(Specialty.name, String) == specialty_name)
-                            .first()
-                        )
-                        if not specialty:
-                            specialty = Specialty(
-                                name=specialty_name,
-                                created_by=created_by,
-                                user_ip=user_ip,
-                                updated_by=None,
-                            )
-                            db.add(specialty)
-                            db.flush()
-                        association = AttendantSpecialty(
-                            created_by=created_by,
-                            user_ip=user_ip,
-                        )
-                        association.specialty = specialty
-                        attendant.specialty_associations.append(association)
-                        db.add(
-                            association
-                        )  # Ensure the association is tracked by the session
-                if team_names:
-                    logger.info(f"Printing team_names: %s", team_names)
-                    for t_name in team_names:
-                        team = await self.crud_team.get_by_name(db, t_name)
-                        logger.info(f"Return get_by_name: %s", team)
-                        if not team:
-                            team = await self.crud_team.create(
-                                db,
-                                t_name,
-                                team_site="default",
-                                created_by=created_by,
-                                user_ip=user_ip,
-                            )
-                            logger.info(f"Return team.create: %s", team)
-                        # Always create a new AttendantTeam instance:
-                        team_association = AttendantTeam(
-                            team=team, created_by=created_by, user_ip=user_ip
-                        )
-                        logger.info(f"Adding Association: %s", team_association)
-                        attendant.team_associations.append(team_association)
-                        db.add(team_association)
-
-                if function_name:
-                    logger.info(f"Printing functions: %s", function_name)
-                    func_obj = await self.crud_function.get_by_name(db, function_name)
-                    logger.info(f"Return get_by_name: %s", func_obj)
-                    if not func_obj:
-                        func_obj = await self.crud_function.create(
-                            db,
-                            function_name,
-                            description="Auto-created function",
-                            created_by=created_by,
-                            user_ip=user_ip,
-                        )
-                        logger.info(f"Return function.create: %s", func_obj)
-                    attendant.function = func_obj
-
-                db.add(attendant)
-                db.commit()
-                db.refresh(attendant)
-                user.attendant = attendant
-                db.commit()
-                db.refresh(user)
-
-            db.commit()
-            db.refresh(user)
-            if user.attendant:
-                attendant_info = AttendantResponse.from_orm(user.attendant)
-                user_info = AttendandInfo.from_orm(user)
-                user_info.attendant_data = attendant_info
-                user_info.attendant_data.team_names = [
-                    team.team_name for team in user.attendant.teams
-                ]
-                user_info.attendant_data.function_names = (
-                    user.attendant.function.name if user.attendant.function else None
+                attendant = await self._create_attendant(
+                    db, obj_in.attendant_data, user.id, created_by, user_ip
                 )
-                logger.info(f"Return user_info: %s", user_info)
-                return user_info
+                user.attendant = attendant
+                self._commit_and_refresh(db, attendant, user)
 
-            return AttendandInfo.from_orm(user)
+            # Step 3: Finalize user commit and build response
+            self._finalize_user(db, user)
+            return self._build_response(user)
 
         except Exception as e:
             db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"Error to register Attendant: {str(e)}"
             )
+
+    async def _create_attendant(
+        self, db: Session, attendant_input, user_id: int, created_by: int, user_ip: str
+    ) -> Attendant:
+        # Extract attendant data and associated lists/names.
+        attendant_data = attendant_input.model_dump()
+        specialties_list = attendant_data.pop("specialties", [])
+        team_names = attendant_data.pop("team_names", [])
+        function_name = attendant_data.pop("function_names", None)
+
+        attendant_data.update(
+            {
+                "user_id": user_id,
+                "created_by": created_by,
+                "user_ip": user_ip,
+            }
+        )
+
+        try:
+            attendant = Attendant(**attendant_data)
+        except TypeError as e:
+            raise HTTPException(
+                status_code=400, detail=f"Error while creating Attendant: {e}"
+            )
+
+        # Add sub-associations.
+        self._add_specialties(db, attendant, specialties_list, created_by, user_ip)
+        await self._add_team_associations(
+            db, attendant, team_names, created_by, user_ip
+        )
+        await self._set_function_association(
+            db, attendant, function_name, created_by, user_ip
+        )
+
+        db.add(attendant)
+        return attendant
+
+    def _add_specialties(
+        self,
+        db: Session,
+        attendant: Attendant,
+        specialties_list: list,
+        created_by: int,
+        user_ip: str,
+    ):
+        for specialty_name in specialties_list:
+            specialty = (
+                db.query(Specialty).filter(Specialty.name == specialty_name).first()
+            )
+            if not specialty:
+                specialty = Specialty(
+                    name=specialty_name,
+                    created_by=created_by,
+                    user_ip=user_ip,
+                    updated_by=None,
+                )
+                db.add(specialty)
+                db.flush()
+            association = AttendantSpecialty(
+                created_by=created_by,
+                user_ip=user_ip,
+            )
+            association.specialty = specialty
+            attendant.specialty_associations.append(association)
+            db.add(association)
+
+    async def _add_team_associations(
+        self,
+        db: Session,
+        attendant: Attendant,
+        team_names: list,
+        created_by: int,
+        user_ip: str,
+    ):
+        logger.info(f"Team names: %s", team_names)
+        for t_name in team_names:
+            team = await self.crud_team.get_by_name(db, t_name)
+            logger.info(f"Team returned from get_by_name: %s", team)
+            if not team:
+                team = await self.crud_team.create(
+                    db,
+                    t_name,
+                    team_site="default",
+                    created_by=created_by,
+                    user_ip=user_ip,
+                )
+                logger.info(f"Team created: %s", team)
+            team_association = AttendantTeam(
+                team=team, created_by=created_by, user_ip=user_ip
+            )
+            logger.info(f"Adding team association: %s", team_association)
+            attendant.team_associations.append(team_association)
+            db.add(team_association)
+
+    async def _set_function_association(
+        self,
+        db: Session,
+        attendant: Attendant,
+        function_name: str,
+        created_by: int,
+        user_ip: str,
+    ):
+        if function_name:
+            logger.info(f"Processing function: %s", function_name)
+            func_obj = await self.crud_function.get_by_name(db, function_name)
+            logger.info(f"Function returned from get_by_name: %s", func_obj)
+            if not func_obj:
+                func_obj = await self.crud_function.create(
+                    db,
+                    function_name,
+                    description="Auto-created function",
+                    created_by=created_by,
+                    user_ip=user_ip,
+                )
+                logger.info(f"Function created: %s", func_obj)
+            attendant.function = func_obj
+
+    def _commit_and_refresh(self, db: Session, attendant: Attendant, user):
+        db.commit()
+        db.refresh(attendant)
+        user.attendant = attendant
+        db.commit()
+        db.refresh(user)
+
+    def _finalize_user(self, db: Session, user):
+        db.commit()
+        db.refresh(user)
+
+    def _build_response(self, user) -> AttendandInfo:
+        if user.attendant:
+            attendant_info = AttendantResponse.model_validate(user.attendant)
+            user_info = AttendandInfo.model_validate(user)
+            user_info.attendant_data = attendant_info
+            user_info.attendant_data.team_names = [
+                team.team_name for team in user.attendant.teams
+            ]
+            user_info.attendant_data.function_names = (
+                user.attendant.function.name if user.attendant.function else None
+            )
+            logger.info(f"Returning user_info: %s", user_info)
+            return user_info
+        return AttendandInfo.model_validate(user)
