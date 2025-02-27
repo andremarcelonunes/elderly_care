@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import HTTPException
+from sqlalchemy import cast, String
 from sqlalchemy.orm import Session
 
 from backendeldery.models import (
@@ -43,7 +44,7 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
         try:
             # Step 1: Create the User
             user = await self.crud_user.create(db, obj_in.dict(), created_by, user_ip)
-            logger.info(f"User created: {user}")
+            logger.info(f"User created: %s", user)
             if obj_in.role == "attendant" and obj_in.attendant_data:
                 attendant_data = obj_in.attendant_data.model_dump()
                 specialties_list = attendant_data.pop("specialties", [])
@@ -66,7 +67,7 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
                     for specialty_name in specialties_list:
                         specialty = (
                             db.query(Specialty)
-                            .filter(Specialty.name == specialty_name)
+                            .filter(cast(Specialty.name, String) == specialty_name)
                             .first()
                         )
                         if not specialty:
@@ -88,10 +89,10 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
                             association
                         )  # Ensure the association is tracked by the session
                 if team_names:
-                    logger.info(f"Printing team_names: {team_names}")
+                    logger.info(f"Printing team_names: %s", team_names)
                     for t_name in team_names:
                         team = await self.crud_team.get_by_name(db, t_name)
-                        logger.info(f"Return get_by_name: {team}")
+                        logger.info(f"Return get_by_name: %s", team)
                         if not team:
                             team = await self.crud_team.create(
                                 db,
@@ -100,19 +101,19 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
                                 created_by=created_by,
                                 user_ip=user_ip,
                             )
-                            logger.info(f"Return team.create: {team}")
+                            logger.info(f"Return team.create: %s", team)
                         # Always create a new AttendantTeam instance:
                         team_association = AttendantTeam(
                             team=team, created_by=created_by, user_ip=user_ip
                         )
-                        logger.info(f"Adding Association: {team_association}")
+                        logger.info(f"Adding Association: %s", team_association)
                         attendant.team_associations.append(team_association)
                         db.add(team_association)
 
                 if function_name:
-                    logger.info(f"Printing functions: {function_name}")
+                    logger.info(f"Printing functions: %s", function_name)
                     func_obj = await self.crud_function.get_by_name(db, function_name)
-                    logger.info(f"Return get_by_name: {func_obj}")
+                    logger.info(f"Return get_by_name: %s", func_obj)
                     if not func_obj:
                         func_obj = await self.crud_function.create(
                             db,
@@ -121,7 +122,7 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
                             created_by=created_by,
                             user_ip=user_ip,
                         )
-                        logger.info(f"Return function.create: {func_obj}")
+                        logger.info(f"Return function.create: %s", func_obj)
                     attendant.function = func_obj
 
                 db.add(attendant)
@@ -143,7 +144,7 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
                 user_info.attendant_data.function_names = (
                     user.attendant.function.name if user.attendant.function else None
                 )
-                logger.info(f"Return user_info: {user_info}")
+                logger.info(f"Return user_info: %s", user_info)
                 return user_info
 
             return AttendandInfo.from_orm(user)
