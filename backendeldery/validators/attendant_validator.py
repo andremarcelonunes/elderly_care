@@ -8,7 +8,7 @@ from backendeldery.schemas import AttendantCreate
 
 
 class AttendantValidator:
-    def validate_attendant(self, db: Session, attendant_data: AttendantCreate) -> None:
+    def validate_attendant(db: Session, attendant_data: AttendantCreate) -> None:
         """
         Validates the Attendant data before creating a new attendant.
         """
