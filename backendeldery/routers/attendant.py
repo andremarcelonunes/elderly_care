@@ -58,3 +58,24 @@ async def register_attendant(
         raise HTTPException(
             status_code=500, detail=f"Error on register attendant: {str(e)}"
         )
+
+
+@router.get("/attendants/{attendant_id}")
+async def get_attendant(
+    attendant_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint to get information about an attendant by ID.
+    """
+    try:
+        attendant = await AttendantService.get_attendant_by_id(db=db, id=attendant_id)
+        if attendant:
+            return attendant
+        raise HTTPException(status_code=404, detail="Attendant not found.")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving attendant: {str(e)}"
+        )

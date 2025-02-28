@@ -92,7 +92,7 @@ class AttendantResponse(BaseModel):
     nivel_experiencia: str  # You could further restrict with Literal if needed
     formacao: Optional[str] = None
     specialty_names: List[str]
-    team_names: Optional[List[str]] = []
+    team_names: List[str] = []
     function_names: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

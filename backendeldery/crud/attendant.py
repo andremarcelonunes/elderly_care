@@ -1,20 +1,21 @@
 import logging
+from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from backendeldery.models import (
     Attendant,
     Specialty,
     AttendantSpecialty,
     AttendantTeam,
+    User,
 )
 from backendeldery.schemas import (
-    AttendantCreate,
     AttendantResponse,
     AttendandInfo,
+    UserInfo,
 )
-from .base import CRUDBase
 from .function import CRUDFunction
 from .team import CRUDTeam
 from .users import CRUDUser
@@ -29,10 +30,9 @@ if not logger.hasHandlers():
     logger.addHandler(console_handler)
 
 
-class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
+class CRUDAttendant(CRUDUser):
     def __init__(self):
-        super().__init__(Attendant)
-        self.crud_user = CRUDUser()
+        super().__init__()
         self.crud_function = CRUDFunction()
         self.crud_team = CRUDTeam()
 
@@ -42,21 +42,30 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
         logger.info("Creating attendant")
         try:
             # Step 1: Create the User
-            user = await self.crud_user.create(db, obj_in.dict(), created_by, user_ip)
+            user = await super().create(db, obj_in.dict(), created_by, user_ip)
             logger.info("User created: %s", user)
 
             # Step 2: Process attendant data if needed
             if obj_in.role == "attendant" and obj_in.attendant_data:
-                attendant = await self._create_attendant(
-                    db, obj_in.attendant_data, user.id, created_by, user_ip
-                )
-                user.attendant = attendant
-                self._commit_and_refresh(db, attendant, user)
+                try:
+                    attendant = await self._create_attendant(
+                        db, obj_in.attendant_data, user.id, created_by, user_ip
+                    )
+                    user.attendant = attendant
+                    self._commit_and_refresh(db, attendant, user)
+                except TypeError as e:
+                    db.rollback()
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Error while creating Attendant: {str(e)}",
+                    )
 
             # Step 3: Finalize user commit and build response
             self._finalize_user(db, user)
             return self._build_response(user)
 
+        except HTTPException:
+            raise
         except Exception as e:
             db.rollback()
             raise HTTPException(
@@ -66,38 +75,39 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
     async def _create_attendant(
         self, db: Session, attendant_input, user_id: int, created_by: int, user_ip: str
     ) -> Attendant:
-        # Extract attendant data and associated lists/names.
-        attendant_data = attendant_input.model_dump()
-        specialties_list = attendant_data.pop("specialties", [])
-        team_names = attendant_data.pop("team_names", [])
-        function_name = attendant_data.pop("function_names", None)
-
-        attendant_data.update(
-            {
-                "user_id": user_id,
-                "created_by": created_by,
-                "user_ip": user_ip,
-            }
-        )
-
         try:
-            attendant = Attendant(**attendant_data)
-        except TypeError as e:
-            raise HTTPException(
-                status_code=400, detail=f"Error while creating Attendant: {e}"
+            # Extract attendant data and associated lists/names
+            attendant_data = attendant_input.model_dump()
+            specialties_list = attendant_data.pop("specialties", [])
+            team_names = attendant_data.pop("team_names", [])
+            function_name = attendant_data.pop("function_names", None)
+
+            attendant_data.update(
+                {
+                    "user_id": user_id,
+                    "created_by": created_by,
+                    "user_ip": user_ip,
+                }
             )
 
-        # Add sub-associations.
-        self._add_specialties(db, attendant, specialties_list, created_by, user_ip)
-        await self._add_team_associations(
-            db, attendant, team_names, created_by, user_ip
-        )
-        await self._set_function_association(
-            db, attendant, function_name, created_by, user_ip
-        )
+            attendant = Attendant(**attendant_data)
 
-        db.add(attendant)
-        return attendant
+            # Add sub-associations
+            self._add_specialties(db, attendant, specialties_list, created_by, user_ip)
+            await self._add_team_associations(
+                db, attendant, team_names, created_by, user_ip
+            )
+            await self._set_function_association(
+                db, attendant, function_name, created_by, user_ip
+            )
+
+            db.add(attendant)
+            return attendant
+
+        except TypeError as e:
+            raise HTTPException(
+                status_code=400, detail=f"Error while creating Attendant: {str(e)}"
+            )
 
     def _add_specialties(
         self,
@@ -204,3 +214,42 @@ class CRUDAttendant(CRUDBase[Attendant, AttendantCreate]):
             logger.info("Returning user_info: %s", user_info)
             return user_info
         return AttendandInfo.model_validate(user)
+
+    async def get(self, db: Session, id: int) -> Optional[UserInfo]:
+        """
+        Fetches an attendant by ID with user details if they exist.
+        """
+        try:
+            user = (
+                db.query(self.model)
+                .options(
+                    joinedload(User.attendant_data)
+                )  # Ensure relationship is loaded
+                .filter(User.id == id)
+                .first()
+            )
+            if not user:
+                raise HTTPException(
+                    status_code=404,
+                    detail="User no found",
+                )
+
+            user_info = UserInfo.from_orm(user)
+            if user.attendant_data:
+                user_info.attendant_data = AttendantResponse.from_orm(
+                    user.attendant_data
+                )
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"User with ID {id} is not an attendant",
+                )
+
+            return user_info
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error retrieving user with attendant data: {str(e)}",
+            )

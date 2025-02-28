@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -27,6 +29,18 @@ class AttendantService:
                 created_by=created_by,
                 user_ip=user_ip,
             )
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    @staticmethod
+    async def get_attendant_by_id(db: Session, id: int) -> Optional[dict]:
+        """
+        Fetches an attendant by ID with user details if they exist.
+        """
+        try:
+            return await CRUDAttendant().get(db, id)
         except HTTPException as e:
             raise e
         except Exception as e:
