@@ -2,11 +2,12 @@
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from backendeldery.services.attendants import AttendantService
-from backendeldery.schemas import UserCreate, AttendantCreate
-from backendeldery.validators.user_validator import UserValidator
-from backendeldery.validators.attendant_validator import AttendantValidator
+
 from backendeldery.crud.attendant import CRUDAttendant
+from backendeldery.schemas import UserCreate, AttendantCreate
+from backendeldery.services.attendants import AttendantService
+from backendeldery.validators.attendant_validator import AttendantValidator
+from backendeldery.validators.user_validator import UserValidator
 
 
 @pytest.fixture
@@ -27,16 +28,16 @@ def user_data():
             cpf="12345678900",
             birthday="1980-01-01",
             nivel_experiencia="senior",
-            specialties=["Cardiology"]
-        )
+            specialties=["Cardiology"],
+        ),
     )
 
 
 @pytest.mark.asyncio
 async def test_create_attendant_success(db_session, user_data, mocker):
-    mocker.patch.object(UserValidator, 'validate_user', return_value=None)
-    mocker.patch.object(AttendantValidator, 'validate_attendant', return_value=None)
-    mocker.patch.object(CRUDAttendant, 'create', return_value=user_data)
+    mocker.patch.object(UserValidator, "validate_user", return_value=None)
+    mocker.patch.object(AttendantValidator, "validate_attendant", return_value=None)
+    mocker.patch.object(CRUDAttendant, "create", return_value=user_data)
 
     result = await AttendantService.create_attendant(
         db=db_session, user_data=user_data, created_by=1, user_ip="127.0.0.1"
@@ -47,8 +48,12 @@ async def test_create_attendant_success(db_session, user_data, mocker):
 
 @pytest.mark.asyncio
 async def test_create_attendant_validation_error(db_session, user_data, mocker):
-    mocker.patch.object(UserValidator, 'validate_user', side_effect=HTTPException(status_code=400, detail="Validation error"))
-    mocker.patch.object(AttendantValidator, 'validate_attendant', return_value=None)
+    mocker.patch.object(
+        UserValidator,
+        "validate_user",
+        side_effect=HTTPException(status_code=400, detail="Validation error"),
+    )
+    mocker.patch.object(AttendantValidator, "validate_attendant", return_value=None)
 
     with pytest.raises(HTTPException) as exc_info:
         await AttendantService.create_attendant(
@@ -61,9 +66,11 @@ async def test_create_attendant_validation_error(db_session, user_data, mocker):
 
 @pytest.mark.asyncio
 async def test_create_attendant_unexpected_error(db_session, user_data, mocker):
-    mocker.patch.object(UserValidator, 'validate_user', return_value=None)
-    mocker.patch.object(AttendantValidator, 'validate_attendant', return_value=None)
-    mocker.patch.object(CRUDAttendant, 'create', side_effect=Exception("Unexpected error"))
+    mocker.patch.object(UserValidator, "validate_user", return_value=None)
+    mocker.patch.object(AttendantValidator, "validate_attendant", return_value=None)
+    mocker.patch.object(
+        CRUDAttendant, "create", side_effect=Exception("Unexpected error")
+    )
 
     with pytest.raises(HTTPException) as exc_info:
         await AttendantService.create_attendant(
@@ -72,3 +79,58 @@ async def test_create_attendant_unexpected_error(db_session, user_data, mocker):
 
     assert exc_info.value.status_code == 500
     assert exc_info.value.detail == "Unexpected error: Unexpected error"
+
+
+@pytest.mark.asyncio
+async def test_get_attendant_by_id_success(db_session, mocker):
+    mock_attendant = {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john.doe@example.com",
+        "phone": "+123456789",
+        "role": "attendant",
+        "active": True,
+        "attendant_data": {
+            "cpf": "12345678900",
+            "birthday": "1980-01-01",
+            "nivel_experiencia": "senior",
+            "specialties": ["Cardiology"],
+            "team_names": ["Team A"],
+            "function_names": "Doctor",
+        },
+    }
+    mocker.patch.object(CRUDAttendant, "get", return_value=mock_attendant)
+
+    result = await AttendantService.get_attendant_by_id(db=db_session, id=1)
+
+    assert result == mock_attendant
+
+
+@pytest.mark.asyncio
+async def test_get_attendant_by_id_not_found(db_session, mocker):
+    mocker.patch.object(
+        CRUDAttendant,
+        "get",
+        side_effect=HTTPException(status_code=404, detail="User not found"),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await AttendantService.get_attendant_by_id(db=db_session, id=1)
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "User not found"
+
+
+@pytest.mark.asyncio
+async def test_get_attendant_by_id_not_found(db_session, mocker):
+    mocker.patch.object(
+        CRUDAttendant,
+        "get",
+        side_effect=HTTPException(status_code=404, detail="User not found"),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await AttendantService.get_attendant_by_id(db=db_session, id=1)
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "User not found"

@@ -234,10 +234,9 @@ class Team(Base):
     updated_by = Column(Integer, nullable=True)
     user_ip = Column(String, nullable=True)
 
-    # Relacionamento com clientes
+    # ✅ Ensure relationships are correctly defined
     clients = relationship("Client", back_populates="team")
     attendant_associations = relationship("AttendantTeam", back_populates="team")
-    attendants = association_proxy("attendant_associations", "attendant")
 
     def __repr__(self):
         return f"<Team(name='{self.team_name}')>"
@@ -280,9 +279,8 @@ class Attendant(Base):
     function = relationship(
         "Function", back_populates="attendants"
     )  # One-to-many (still correct)
-    team_associations = relationship(
-        "AttendantTeam", back_populates="attendant", cascade="all, delete-orphan"
-    )
+    team_associations = relationship("AttendantTeam", back_populates="attendant")
+
     teams = association_proxy("team_associations", "team")
     availabilities = relationship("Availability", back_populates="attendant")
     appointments = relationship("Appointment", back_populates="attendant")
@@ -310,7 +308,10 @@ class Attendant(Base):
 
     @hybrid_property
     def team_names(self):
-        return ", ".join(team.name for team in self.teams)
+        """Returns a list of team names from the related AttendantTeam objects."""
+        if not hasattr(self, "team_associations") or self.team_associations is None:
+            return []
+        return [assoc.team.team_name for assoc in self.team_associations if assoc.team]
 
     @team_names.setter
     def team_names(self, value):
@@ -320,6 +321,10 @@ class Attendant(Base):
 
     def __repr__(self):
         return f"<Attendant(user_id={self.user_id}, cpf='{self.cpf}')>"
+
+    @hybrid_property
+    def function_names(self):
+        return self.function.name if self.function else None
 
 
 class Client(Base):

@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from backendeldery.models import (
     Attendant,
@@ -222,17 +222,27 @@ class CRUDAttendant(CRUDUser):
         try:
             user = (
                 db.query(self.model)
-                .outerjoin(Attendant, User.id == Attendant.user_id)
+                .options(
+                    joinedload(User.attendant_data)
+                )  # Ensure relationship is loaded
                 .filter(User.id == id)
                 .first()
             )
             if not user:
-                return None
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"User no found",
+                )
 
             user_info = UserInfo.from_orm(user)
             if user.attendant_data:
                 user_info.attendant_data = AttendantResponse.from_orm(
                     user.attendant_data
+                )
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"User with ID {id} is not an attendant",
                 )
 
             return user_info

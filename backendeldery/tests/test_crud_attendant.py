@@ -14,7 +14,12 @@ from backendeldery.models import (
     Function,
     Team,
 )
-from backendeldery.schemas import UserCreate, AttendantCreate
+from backendeldery.schemas import (
+    UserCreate,
+    AttendantCreate,
+    AttendantResponse,
+    UserInfo,
+)
 
 
 class DummyQuery:
@@ -214,7 +219,7 @@ async def test_create_attendant_with_new_function(db_session, user_data, mocker)
 
 
 @pytest.mark.asyncio
-async def test_get_attendant_success(mocker):
+async def test_get_attendant_success():
     crud_attendant = CRUDAttendant()
 
     # Create a fake attendant ORM object with correct types.
@@ -229,7 +234,7 @@ async def test_get_attendant_success(mocker):
         registro_conselho="123",
         nivel_experiencia="senior",
         formacao="degree",
-        specialty_names=["Cardiology"],  # <-- Added this field
+        specialty_names=["Cardiology"],
         teams=[SimpleNamespace(team_name="Team A")],
         function=SimpleNamespace(name="Doctor"),
     )
@@ -242,41 +247,62 @@ async def test_get_attendant_success(mocker):
         phone="+123456789",
         role="attendant",
         active=True,
-        attendant=fake_attendant,  # Note: using an attribute, not a dict key.
+        attendant_data=fake_attendant,  # Use the correct attribute name
     )
 
     # Create a fake db session that returns fake_user from the query chain.
     fake_db = MagicMock()
-    fake_db_query = fake_db.query.return_value
-    fake_outerjoin = fake_db_query.outerjoin.return_value
-    fake_filter = fake_outerjoin.filter.return_value
-    fake_filter.first.return_value = fake_user
+    fake_db.query.return_value.options.return_value.filter.return_value.first.return_value = (
+        fake_user
+    )
 
+    # Run the method
     result = await crud_attendant.get(db=fake_db, id=1)
+
+    # Validate that result is not None
     assert result is not None
+    assert isinstance(result, UserInfo)
+    assert result.id == fake_user.id
+    assert result.name == fake_user.name
+    assert result.email == fake_user.email
+    assert result.phone == fake_user.phone
+    assert result.role == fake_user.role
+    assert result.active == fake_user.active
+
+    # Validate the attendant data
+    assert result.attendant_data is not None
+    assert isinstance(result.attendant_data, AttendantResponse)
+    assert result.attendant_data.cpf == fake_attendant.cpf
+    assert result.attendant_data.address == fake_attendant.address
+    assert result.attendant_data.city == fake_attendant.city
+    assert result.attendant_data.birthday == fake_attendant.birthday
 
 
 @pytest.mark.asyncio
-async def test_get_attendant_not_found(mocker):
+async def test_get_attendant_not_found():
     crud_attendant = CRUDAttendant()
 
     # Create a fake db session that returns None for the query chain.
     fake_db = MagicMock()
-    # Set up the chain: query().outerjoin().filter().first() returns None.
-    fake_db.query.return_value.outerjoin.return_value.filter.return_value.first.return_value = (
+
+    # Ensure that query().options().filter().first() returns None.
+    fake_db.query.return_value.options.return_value.filter.return_value.first.return_value = (
         None
     )
 
-    # Now, get should return None.
-    result = await crud_attendant.get(db=fake_db, id=1)
-    assert result is None
+    # Call the method
+    with pytest.raises(HTTPException) as exc_info:
+        await crud_attendant.get(db=fake_db, id=1)
+
+    # Validate that the exception has the correct status code and detail
+    assert exc_info.value.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_get_attendant_no_attendant_data(mocker):
+async def test_get_attendant_no_attendant_data():
     crud_attendant = CRUDAttendant()
 
-    # Create a fake user object WITH the 'attendant' attribute set to None.
+    # Create a fake user object WITH 'attendant_data' set to None.
     fake_user = SimpleNamespace(
         id=2,
         name="Jane Doe",
@@ -284,19 +310,19 @@ async def test_get_attendant_no_attendant_data(mocker):
         phone="+987654321",
         role="attendant",
         active=True,
-        attendant=None,  # This simulates no attendant data.
+        attendant_data=None,  # Ensuring this matches the expected attribute name.
     )
 
     fake_db = MagicMock()
-    # Configure the query chain so that first() returns our fake user.
-    fake_db.query.return_value.outerjoin.return_value.filter.return_value.first.return_value = (
+    # Ensure query().options().filter().first() returns our fake user.
+    fake_db.query.return_value.options.return_value.filter.return_value.first.return_value = (
         fake_user
     )
 
-    result = await crud_attendant.get(db=fake_db, id=2)
-    assert result is not None
-    # Since there is no attendant, attendant_data should be absent or None.
-    assert getattr(result, "attendant_data", None) is None
+    with pytest.raises(HTTPException) as exc_info:
+        await crud_attendant.get(db=fake_db, id=2)
+
+    assert exc_info.value.status_code == 404
 
 
 @pytest.mark.asyncio
