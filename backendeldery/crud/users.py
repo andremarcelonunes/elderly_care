@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy import update
@@ -19,7 +20,7 @@ from backendeldery.schemas import (
     SubscriberInfo,
     UserUpdate,
 )
-from backendeldery.utils import hash_password
+from backendeldery.utils import hash_password, obj_to_dict
 from .base import CRUDBase
 
 logger = logging.getLogger("backendeldery")
@@ -56,6 +57,23 @@ class CRUDUser(CRUDBase[User, UserCreate]):
         db.flush()  # Usa `flush` ao invés de `commit` para preparar a transação sem encerrar
         db.refresh(db_obj)
         return db_obj
+
+    async def get(self, db: Session, id: int) -> Optional[dict]:
+        """Fetches a user and attaches related data (client or attendant) dynamically."""
+        user = db.query(self.model).filter(self.model.id == id).first()
+        if user:
+            data = obj_to_dict(user)
+            # Attach client_data or attendant_data based on role
+            if user.role == "attendant":
+                data["attendant_data"] = (
+                    obj_to_dict(user.attendant_data) if user.attendant_data else None
+                )
+            elif user.role == "client":
+                data["client_data"] = (
+                    obj_to_dict(user.client_data) if user.client_data else None
+                )
+            return data
+        return None
 
 
 class CRUDClient(CRUDBase):

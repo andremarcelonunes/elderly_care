@@ -94,6 +94,7 @@ class User(Base):
         back_populates="contacts",
     )
     client = relationship("Client", uselist=False, back_populates="user")
+    attendant_data = relationship("Attendant", uselist=False, back_populates="user")
     patient_progress = relationship("PatientProgress", back_populates="attendant")
     tickets = relationship("Ticket", back_populates="attendant")  # Adicionado
 
@@ -275,6 +276,7 @@ class Attendant(Base):
     )
     # Association proxy to access specialties directly:
     specialties = association_proxy("specialty_associations", "specialty")
+    user = relationship("User", back_populates="attendant_data")
     function = relationship(
         "Function", back_populates="attendants"
     )  # One-to-many (still correct)
