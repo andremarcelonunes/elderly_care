@@ -59,7 +59,8 @@ class CRUDUser(CRUDBase[User, UserCreate]):
         return db_obj
 
     async def get(self, db: Session, id: int) -> Optional[dict]:
-        """Fetches a user and attaches related data (client or attendant) dynamically."""
+        """Fetches a user and attaches related data
+        (client or attendant) dynamically."""
         user = db.query(self.model).filter(self.model.id == id).first()
         if user:
             data = obj_to_dict(user)
@@ -73,7 +74,10 @@ class CRUDUser(CRUDBase[User, UserCreate]):
                     obj_to_dict(user.client_data) if user.client_data else None
                 )
             return data
-        return None
+        raise HTTPException(
+            status_code=404,
+            detail="User no found",
+        )
 
 
 class CRUDClient(CRUDBase):

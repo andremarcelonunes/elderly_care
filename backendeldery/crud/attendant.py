@@ -231,7 +231,7 @@ class CRUDAttendant(CRUDUser):
             if not user:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"User no found",
+                    detail="User no found",
                 )
 
             user_info = UserInfo.from_orm(user)
