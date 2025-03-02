@@ -166,6 +166,27 @@ class ClientUpdate(BaseModel):
         return values
 
 
+class AttendantUpdate(BaseModel):
+    address: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    code_address: Optional[str] = None
+    registro_conselho: Optional[str] = None
+    nivel_experiencia: Literal["junior", "pleno", "senior", "especialista"]
+    formacao: Optional[str] = None
+    specialties: Optional[List[str]] = []
+    team_names: Optional[List[str]] = []
+    function_names: Optional[str] = None
+
+    @model_validator(mode="before")
+    def check_extra_fields(cls, values):
+        extra_fields = set(values.keys()) - set(cls.model_fields.keys())
+        if extra_fields:
+            raise ValueError("this change is not authorized")
+        return values
+
+
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = Field(
@@ -173,6 +194,7 @@ class UserUpdate(BaseModel):
     )  # Validação do phon
     active: Optional[bool] = None
     client_data: Optional[ClientUpdate] = None
+    attendant_data: Optional[AttendantUpdate] = None
 
     @model_validator(mode="before")
     def check_extra_fields(cls, values):

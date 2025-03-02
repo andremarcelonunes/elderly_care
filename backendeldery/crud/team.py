@@ -2,6 +2,8 @@
 from typing import List
 
 from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from backendeldery.crud.base import CRUDBase
@@ -12,8 +14,11 @@ class CRUDTeam(CRUDBase):
     def __init__(self):
         super().__init__(Team)
 
-    async def get_by_name(self, db: Session, name: str) -> Team:
-        return db.query(self.model).filter(self.model.team_name == name).first()
+    async def get_by_name(self, db: AsyncSession, name: str) -> Team:
+        result = await db.execute(
+            select(self.model).filter(self.model.team_name == name)
+        )
+        return result.scalars().first()
 
     async def create(
         self, db: Session, team_name: str, team_site: str, created_by: int, user_ip: str

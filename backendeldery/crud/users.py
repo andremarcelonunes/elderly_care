@@ -79,6 +79,38 @@ class CRUDUser(CRUDBase[User, UserCreate]):
             detail="User no found",
         )
 
+    async def update(
+        self,
+        db: Session,
+        user_id: int,
+        update_data: UserUpdate,
+        updated_by: int,
+        user_ip: str,
+    ):
+        """Update User fields dynamically including audit fields"""
+
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError("User not found")
+
+        # Filter fields to update
+        user_data = {
+            k: v
+            for k, v in update_data.model_dump(exclude_unset=True).items()
+            if v is not None
+        }
+
+        # Apply updates dynamically
+        for key, value in user_data.items():
+            setattr(user, key, value)
+
+        # Update audit data
+        user.updated_by = updated_by
+        user.user_ip = user_ip
+
+        db.add(user)  # No commit here; transaction is managed by caller
+        return user
+
 
 class CRUDClient(CRUDBase):
     def __init__(self):

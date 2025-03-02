@@ -2,6 +2,8 @@ import logging
 from typing import Optional
 
 from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, joinedload
 
 from backendeldery.models import (
@@ -15,6 +17,13 @@ from backendeldery.schemas import (
     AttendantResponse,
     AttendandInfo,
     UserInfo,
+    UserUpdate,
+)
+from backendeldery.services.attendantAssociationService import (
+    AttendantAssociationService,
+)
+from backendeldery.services.attendantUpdateService import (
+    AttendantUpdateService,
 )
 from .function import CRUDFunction
 from .team import CRUDTeam
@@ -234,9 +243,9 @@ class CRUDAttendant(CRUDUser):
                     detail="User no found",
                 )
 
-            user_info = UserInfo.from_orm(user)
+            user_info = UserInfo.model_validate(user)
             if user.attendant_data:
-                user_info.attendant_data = AttendantResponse.from_orm(
+                user_info.attendant_data = AttendantResponse.model_validate(
                     user.attendant_data
                 )
             else:
@@ -253,3 +262,79 @@ class CRUDAttendant(CRUDUser):
                 status_code=500,
                 detail=f"Error retrieving user with attendant data: {str(e)}",
             )
+
+    async def update(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        update_data: UserUpdate,
+        updated_by: int,
+        user_ip: str,
+    ) -> Attendant:
+        """
+        Atomically update a User and their associated Attendant information.
+
+        Args:
+            db: Asynchronous database session
+            user_id: ID of the user to update
+            update_data: Update data transfer object
+            updated_by: ID of the user performing the update
+            user_ip: IP address of the requesting client
+
+        Returns:
+            Attendant: The updated attendant entity
+
+        Raises:
+            HTTPException: 404 if user or attendant is not found
+            RuntimeError: If any database operation fails
+        """
+        try:
+            async with db.begin():
+                update_dict = update_data.model_dump(exclude_unset=True)
+                attendant_data = update_dict.pop("attendant_data", None)
+
+                # Update the user and core attendant data.
+                update_service = AttendantUpdateService(db, updated_by, user_ip)
+                user = await update_service.update_user(user_id, update_data, self)
+                if not user:
+                    raise HTTPException(status_code=404, detail="User not found")
+
+                attendant = await update_service.get_attendant(user_id)
+                if attendant_data:
+                    update_service.update_attendant_core_fields(
+                        attendant, attendant_data
+                    )
+
+                # Update associations using the association service.
+                association_service = AttendantAssociationService(
+                    db, attendant.user_id, updated_by, user_ip
+                )
+                if attendant_data:
+                    if attendant_data.get("team_names"):
+                        await association_service.update_team_associations(
+                            attendant_data.get("team_names"), self.crud_team
+                        )
+                    if attendant_data.get("function_names"):
+                        attendant.function = (
+                            await association_service.update_function_association(
+                                attendant_data.get("function_names"), self.crud_function
+                            )
+                        )
+                    if attendant_data.get("specialties"):
+                        await association_service.update_specialty_associations(
+                            attendant_data.get("specialties")
+                        )
+
+                await db.refresh(attendant)
+                return attendant
+
+        except HTTPException as e:
+            raise e
+        except SQLAlchemyError as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=500, detail=f"Failed to update attendant: {str(e)}"
+            ) from e
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(status_code=500, detail=str(e)) from e

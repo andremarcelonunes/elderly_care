@@ -2,6 +2,8 @@ import logging
 import time
 
 from sqlalchemy import create_engine, text, MetaData
+from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 from backendeldery.config import settings
@@ -12,23 +14,40 @@ logging.getLogger("sqlalchemy.pool").setLevel(logging.CRITICAL)
 
 
 class Database:
-    def __init__(self, database_url):
+    def __init__(self, sync_database_url: str, async_database_url: str = None):
         # Configura o SQLAlchemy
-        self.engine = create_engine(database_url)
+        self.engine = create_engine(sync_database_url)
         self.SessionLocal = sessionmaker(
             autocommit=False, autoflush=False, bind=self.engine
         )
         self.Base = declarative_base()
+        self.async_engine = create_async_engine(async_database_url, echo=True)
+        self.AsyncSessionLocal = async_sessionmaker(
+            bind=self.async_engine,
+            autocommit=False,
+            autoflush=False,
+            class_=AsyncSession,
+        )
 
     def get_db(self):
         """
-        Retorna uma sessão do banco de dados.
+        Returns a synchronous DB session.
         """
         db = self.SessionLocal()
         try:
             yield db
         finally:
             db.close()
+
+    async def get_async_db(self):
+        """
+        Retorna uma sessão do banco de dados.
+        """
+        db = self.AsyncSessionLocal()
+        try:
+            yield db
+        finally:
+            await db.close()
 
     def execute(self, sql):
         """
@@ -38,7 +57,10 @@ class Database:
             connection.execute(sql)
 
 
-db_instance = Database(settings.DATABASE_URL)
+db_instance = Database(
+    sync_database_url=settings.DATABASE_URL_SYNC,
+    async_database_url=settings.DATABASE_URL_ASYNC,  # This can be derived in settings as shown earlier.
+)
 
 # Alias para Base e SessionLocal, se necessário
 Base = db_instance.Base
@@ -46,7 +68,7 @@ SessionLocal = db_instance.SessionLocal
 
 
 # Configuração do SQLAlchemy
-engine = create_engine(settings.DATABASE_URL)
+engine = db_instance.engine
 
 
 function_sql = text(

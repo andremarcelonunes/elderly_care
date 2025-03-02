@@ -4,6 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from backendeldery import CRUDUser
@@ -19,6 +21,8 @@ from backendeldery.schemas import (
     AttendantCreate,
     AttendantResponse,
     UserInfo,
+    AttendantUpdate,
+    UserUpdate,
 )
 
 
@@ -36,6 +40,45 @@ class DummyQuery:
 @pytest.fixture
 def db_session(mocker):
     return mocker.Mock(spec=Session)
+
+
+class DummyAsyncContextManager:
+    def __init__(self, session):
+        self.session = session
+
+    async def __aenter__(self):
+        return self.session
+
+    async def __aexit__(self, exc_type, exc, tb):
+        pass
+
+
+@pytest.fixture
+def async_db_session(mocker):
+    session = mocker.Mock(spec=AsyncSession)
+
+    # Set up begin to return an async context manager.
+    session.begin = MagicMock(return_value=DummyAsyncContextManager(session))
+    session.commit = AsyncMock()
+    session.rollback = AsyncMock()
+    session.refresh = AsyncMock()
+
+    return session
+
+
+@pytest.fixture
+def user_update_data():
+    return UserUpdate(
+        email="updated.email@example.com",
+        phone="+987654321",
+        attendant_data=AttendantUpdate(
+            address="Updated Address",
+            specialties=["Updated Specialty"],
+            team_names=["Updated Team"],
+            function_names="Updated Function",
+            nivel_experiencia="senior",  # Add the required field
+        ),
+    )
 
 
 @pytest.fixture
@@ -412,3 +455,232 @@ async def test_create_attendant_type_error(db_session, user_data, mocker):
         )
     assert exc_info.value.status_code == 400
     assert "Error while creating Attendant" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_update_success_full(mocker, async_db_session):
+    crud_attendant = CRUDAttendant()
+
+    # Dummy update_data with attendant_data
+    update_dict = {
+        "attendant_data": {
+            "team_names": ["Team A"],
+            "function_names": "Doctor",
+            "specialties": ["Cardiology"],
+            "address": "New Address",  # extra field for core update
+        }
+    }
+    update_data = MagicMock()
+    update_data.model_dump = lambda **kwargs: update_dict.copy()
+
+    # Dummy user and attendant objects
+    dummy_user = MagicMock()
+    dummy_user.id = 1
+    dummy_attendant = MagicMock()
+    dummy_attendant.user_id = 1
+
+    # Patch update service methods
+    dummy_update_service = MagicMock()
+    dummy_update_service.update_user = AsyncMock(return_value=dummy_user)
+    dummy_update_service.get_attendant = AsyncMock(return_value=dummy_attendant)
+    # Core fields update is synchronous
+    dummy_update_service.update_attendant_core_fields = mocker.Mock()
+
+    # Patch association service methods
+    dummy_association_service = MagicMock()
+    dummy_association_service.update_team_associations = AsyncMock()
+    dummy_association_service.update_function_association = AsyncMock(
+        return_value=MagicMock(name="DummyFunction")
+    )
+    dummy_association_service.update_specialty_associations = AsyncMock()
+
+    # Patch constructors to return our dummy services
+    mocker.patch(
+        "backendeldery.crud.attendant.AttendantUpdateService",
+        return_value=dummy_update_service,
+    )
+    mocker.patch(
+        "backendeldery.crud.attendant.AttendantAssociationService",
+        return_value=dummy_association_service,
+    )
+
+    # Patch refresh to do nothing
+    async_db_session.refresh = AsyncMock()
+
+    # Invoke the update method
+    result = await crud_attendant.update(
+        async_db_session, 1, update_data, 1, "127.0.0.1"
+    )
+
+    # Assertions for update service calls
+    dummy_update_service.update_user.assert_awaited_once_with(
+        1, update_data, crud_attendant
+    )
+    dummy_update_service.get_attendant.assert_awaited_once_with(1)
+    dummy_update_service.update_attendant_core_fields.assert_called_once_with(
+        dummy_attendant, update_dict["attendant_data"]
+    )
+    # Assertions for association service calls
+    dummy_association_service.update_team_associations.assert_awaited_once_with(
+        ["Team A"], crud_attendant.crud_team
+    )
+    dummy_association_service.update_function_association.assert_awaited_once_with(
+        "Doctor", crud_attendant.crud_function
+    )
+    dummy_association_service.update_specialty_associations.assert_awaited_once_with(
+        ["Cardiology"]
+    )
+    async_db_session.refresh.assert_awaited_once_with(dummy_attendant)
+    assert result == dummy_attendant
+
+
+# Test 2: Update with no attendant_data (skip core fields and associations)
+@pytest.mark.asyncio
+async def test_update_without_attendant_data(mocker, async_db_session):
+    crud_attendant = CRUDAttendant()
+
+    update_data = MagicMock()
+    update_data.model_dump.return_value = {}  # no attendant_data provided
+
+    dummy_user = MagicMock()
+    dummy_user.id = 1
+    dummy_attendant = MagicMock()
+    dummy_attendant.user_id = 1
+
+    dummy_update_service = MagicMock()
+    dummy_update_service.update_user = AsyncMock(return_value=dummy_user)
+    dummy_update_service.get_attendant = AsyncMock(return_value=dummy_attendant)
+    dummy_update_service.update_attendant_core_fields = mocker.Mock()
+
+    dummy_association_service = MagicMock()
+    dummy_association_service.update_team_associations = AsyncMock()
+    dummy_association_service.update_function_association = AsyncMock()
+    dummy_association_service.update_specialty_associations = AsyncMock()
+
+    mocker.patch(
+        "backendeldery.crud.attendant.AttendantUpdateService",
+        return_value=dummy_update_service,
+    )
+    mocker.patch(
+        "backendeldery.crud.attendant.AttendantAssociationService",
+        return_value=dummy_association_service,
+    )
+
+    async_db_session.refresh = AsyncMock()
+
+    result = await crud_attendant.update(
+        async_db_session, 1, update_data, 1, "127.0.0.1"
+    )
+
+    # Ensure that core fields and associations were not updated.
+    dummy_update_service.update_attendant_core_fields.assert_not_called()
+    dummy_association_service.update_team_associations.assert_not_called()
+    dummy_association_service.update_function_association.assert_not_called()
+    dummy_association_service.update_specialty_associations.assert_not_called()
+    async_db_session.refresh.assert_awaited_once_with(dummy_attendant)
+    assert result == dummy_attendant
+
+
+# Test 3: update_user returns None -> raise HTTPException(404)
+@pytest.mark.asyncio
+async def test_update_user_not_found(mocker, async_db_session):
+    crud_attendant = CRUDAttendant()
+
+    update_data = MagicMock()
+    update_data.model_dump.return_value = {"attendant_data": {}}
+
+    dummy_update_service = MagicMock()
+    dummy_update_service.update_user = AsyncMock(return_value=None)
+    mocker.patch(
+        "backendeldery.crud.attendant.AttendantUpdateService",
+        return_value=dummy_update_service,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await crud_attendant.update(async_db_session, 1, update_data, 1, "127.0.0.1")
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "User not found"
+
+
+# Test 4: SQLAlchemyError during update -> rollback and raise HTTPException with code 500
+@pytest.mark.asyncio
+async def test_update_sqlalchemy_error(mocker, async_db_session):
+    crud_attendant = CRUDAttendant()
+
+    update_data = MagicMock()
+    update_data.model_dump.return_value = {"attendant_data": {}}
+
+    dummy_update_service = MagicMock()
+    dummy_update_service.update_user = AsyncMock(
+        side_effect=SQLAlchemyError("DB error")
+    )
+    mocker.patch(
+        "backendeldery.crud.attendant.AttendantUpdateService",
+        return_value=dummy_update_service,
+    )
+
+    async_db_session.rollback = AsyncMock()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await crud_attendant.update(async_db_session, 1, update_data, 1, "127.0.0.1")
+    assert exc_info.value.status_code == 500
+    assert "Failed to update attendant: DB error" in exc_info.value.detail
+    async_db_session.rollback.assert_awaited()
+
+
+# Test 5: General Exception during update -> rollback and raise HTTPException with code 500
+@pytest.mark.asyncio
+async def test_update_general_exception(mocker, async_db_session):
+    crud_attendant = CRUDAttendant()
+
+    update_data = MagicMock()
+    update_data.model_dump.return_value = {"attendant_data": {}}
+
+    dummy_update_service = MagicMock()
+    dummy_update_service.update_user = AsyncMock(side_effect=Exception("General error"))
+    mocker.patch(
+        "backendeldery.crud.attendant.AttendantUpdateService",
+        return_value=dummy_update_service,
+    )
+
+    async_db_session.rollback = AsyncMock()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await crud_attendant.update(async_db_session, 1, update_data, 1, "127.0.0.1")
+    assert exc_info.value.status_code == 500
+    assert "General error" in exc_info.value.detail
+    async_db_session.rollback.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_create_attendant_type_error(mocker):
+    crud_attendant = CRUDAttendant()
+    db_mock = MagicMock()
+    db_mock.rollback = MagicMock()
+
+    # Dummy user data with attendant info to trigger the branch
+    user_data = MagicMock()
+    user_data.role = "attendant"
+    user_data.attendant_data = MagicMock()
+
+    # Patch parent's create to return a dummy user
+    dummy_user = MagicMock()
+    dummy_user.id = 1
+    dummy_user.attendant = None
+    mocker.patch(
+        "backendeldery.crud.attendant.CRUDUser.create",
+        return_value=dummy_user,
+    )
+
+    # Patch _create_attendant to raise TypeError so that the except branch is followed
+    mocker.patch.object(
+        crud_attendant,
+        "_create_attendant",
+        new=AsyncMock(side_effect=TypeError("Bad data")),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await crud_attendant.create(db_mock, user_data, 1, "127.0.0.1")
+    assert exc_info.value.status_code == 400
+    assert "Bad data" in exc_info.value.detail
+    db_mock.rollback.assert_called_once()
