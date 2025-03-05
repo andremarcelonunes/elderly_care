@@ -1,10 +1,12 @@
 import logging
+import traceback
 from typing import Optional
 
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backendeldery.models import (
     Attendant,
@@ -263,6 +265,81 @@ class CRUDAttendant(CRUDUser):
                 detail=f"Error retrieving user with attendant data: {str(e)}",
             )
 
+    async def get_async(self, db: AsyncSession, id: int) -> dict:
+        """
+        Fetches a user (with attendant data) by ID using AsyncSession and returns
+        a fully validated UserInfo model dumped to a plain dictionary.
+        """
+        user = None  # Initialize user
+        try:
+            try:
+                result = await db.execute(
+                    select(self.model)
+                    .options(
+                        selectinload(self.model.attendant_data)
+                        .selectinload(Attendant.specialty_associations)
+                        .selectinload(AttendantSpecialty.specialty),
+                        selectinload(self.model.attendant_data)
+                        .selectinload(Attendant.team_associations)
+                        .selectinload(AttendantTeam.team),
+                        selectinload(self.model.attendant_data).selectinload(
+                            Attendant.function
+                        ),
+                    )
+                    .filter(self.model.id == id)
+                )
+                user = result.scalar_one_or_none()
+            except Exception as e:
+                logger.error("Error in get_user: %s", traceback.format_exc())
+                if user:
+                    logger.error("attendant_data: %s", user.attendant_data)
+                    logger.error(
+                        "specialty_names: %s",
+                        getattr(user.attendant_data, "specialty_names", None),
+                    )
+                raise
+
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            # Build a dictionary of the user's data.
+            user_data = {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "phone": user.phone,
+                "role": user.role,
+                "active": user.active,
+                # Override client_data to avoid lazy-loading issues.
+                "client_data": None,
+                # We'll replace attendant_data below.
+                "attendant_data": None,
+            }
+
+            # Convert the nested attendant_data to a dictionary.
+            if user.attendant_data:
+                attendant_model = AttendantResponse.model_validate(user.attendant_data)
+                user_data["attendant_data"] = (
+                    attendant_model.dict()
+                )  # Ensure it's a dict.
+            else:
+                raise HTTPException(
+                    status_code=404, detail=f"User with ID {id} is not an attendant"
+                )
+
+            # Validate and create the main Pydantic model.
+            user_info = UserInfo.model_validate(user_data)
+            # Dump the final model into a plain dictionary before returning.
+            return user_info.model_dump()  # or user_info.dict() if using Pydantic v1
+
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error retrieving user with attendant data: {str(e)}",
+            )
+
     async def update(
         self,
         db: AsyncSession,
@@ -271,62 +348,79 @@ class CRUDAttendant(CRUDUser):
         updated_by: int,
         user_ip: str,
     ) -> Attendant:
-        """
-        Atomically update a User and their associated Attendant information.
-
-        Args:
-            db: Asynchronous database session
-            user_id: ID of the user to update
-            update_data: Update data transfer object
-            updated_by: ID of the user performing the update
-            user_ip: IP address of the requesting client
-
-        Returns:
-            Attendant: The updated attendant entity
-
-        Raises:
-            HTTPException: 404 if user or attendant is not found
-            RuntimeError: If any database operation fails
-        """
         try:
-            async with db.begin():
-                update_dict = update_data.model_dump(exclude_unset=True)
-                attendant_data = update_dict.pop("attendant_data", None)
+            update_dict = update_data.model_dump(exclude_unset=True)
+            attendant_data = update_dict.pop("attendant_data", None)
 
-                # Update the user and core attendant data.
-                update_service = AttendantUpdateService(db, updated_by, user_ip)
-                user = await update_service.update_user(user_id, update_data, self)
-                if not user:
-                    raise HTTPException(status_code=404, detail="User not found")
-
+            update_service = AttendantUpdateService(db, updated_by, user_ip)
+            try:
+                user = await update_service.update_user(
+                    user_id, update_data, updated_by, user_ip
+                )
+            except Exception as e:
+                logger.error("Error in update_user: %s", traceback.format_exc())
+                raise
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            try:
                 attendant = await update_service.get_attendant(user_id)
-                if attendant_data:
-                    update_service.update_attendant_core_fields(
+            except Exception as e:
+                logger.error("Error in update_user: %s", traceback.format_exc())
+                raise
+
+            if attendant is None:
+                raise HTTPException(status_code=404, detail="Attendant not found")
+
+            if attendant_data:
+                try:
+                    await update_service.update_attendant_core_fields(
                         attendant, attendant_data
                     )
-
-                # Update associations using the association service.
+                except Exception as e:
+                    logger.error("Error in update_user: %s", traceback.format_exc())
+                    raise
+            try:
                 association_service = AttendantAssociationService(
                     db, attendant.user_id, updated_by, user_ip
                 )
-                if attendant_data:
-                    if attendant_data.get("team_names"):
+            except Exception as e:
+                logger.error("Error in update_user: %s", traceback.format_exc())
+                raise
+            if attendant_data:
+                if attendant_data.get("team_names"):
+                    try:
                         await association_service.update_team_associations(
                             attendant_data.get("team_names"), self.crud_team
                         )
-                    if attendant_data.get("function_names"):
+                        logger.info(
+                            "NOmes dos times passados a update_team_association: %s",
+                            attendant_data.get("team_names"),
+                        )
+                    except Exception as e:
+                        logger.error("Error in update_user: %s", traceback.format_exc())
+                        raise
+                if attendant_data.get("function_names"):
+                    try:
                         attendant.function = (
                             await association_service.update_function_association(
                                 attendant_data.get("function_names"), self.crud_function
                             )
                         )
-                    if attendant_data.get("specialties"):
+                    except Exception as e:
+                        logger.error("Error in update_user: %s", traceback.format_exc())
+                        raise
+                if attendant_data.get("specialties"):
+                    try:
                         await association_service.update_specialty_associations(
                             attendant_data.get("specialties")
                         )
+                    except Exception as e:
+                        logger.error("Error in update_user: %s", traceback.format_exc())
+                        raise
 
-                await db.refresh(attendant)
-                return attendant
+            await db.commit()  # Explicitly commit the changes
+            await db.refresh(attendant)
+            return attendant
 
         except HTTPException as e:
             raise e

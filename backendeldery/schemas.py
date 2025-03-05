@@ -209,8 +209,10 @@ class UserResponse(BaseModel):
     name: str
     email: Optional[str] = None
     phone: str
+    role: str
     active: bool
     client_data: Optional[Dict] = None
+    attendant_data: Optional[Dict] = None
 
     model_config = ConfigDict(from_attributes=True)
 

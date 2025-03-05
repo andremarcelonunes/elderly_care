@@ -14,7 +14,10 @@ class CRUDTeam(CRUDBase):
     def __init__(self):
         super().__init__(Team)
 
-    async def get_by_name(self, db: AsyncSession, name: str) -> Team:
+    async def get_by_name(self, db: Session, name: str) -> Team:
+        return db.query(self.model).filter(self.model.team_name == name).first()
+
+    async def get_by_name_async(self, db: AsyncSession, name: str) -> Team:
         result = await db.execute(
             select(self.model).filter(self.model.team_name == name)
         )
@@ -33,6 +36,26 @@ class CRUDTeam(CRUDBase):
         db.add(team)
         db.flush()
         db.refresh(team)
+        return team
+
+    async def create_async(
+        self,
+        db: AsyncSession,
+        team_name: str,
+        team_site: str,
+        created_by: int,
+        user_ip: str,
+    ) -> Team:
+        team = Team(
+            team_name=team_name,
+            team_site=team_site,
+            created_by=created_by,
+            user_ip=user_ip,
+        )
+        db.add(team)
+        # Await flush and refresh so that team_id is assigned.
+        await db.flush()
+        await db.refresh(team)
         return team
 
     async def update(

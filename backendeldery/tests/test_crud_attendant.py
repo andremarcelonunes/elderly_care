@@ -104,9 +104,13 @@ def user_data():
 
 @pytest.mark.asyncio
 async def test_create_attendant_success(db_session, user_data, mocker):
-    # Patch to return None for specialty lookup.
-    dummy_query = DummyQuery(return_value=None)
-    mocker.patch.object(db_session, "query", return_value=dummy_query)
+    # Convert db_session to AsyncMock
+    db_session = MagicMock()
+    db_session.commit = MagicMock()
+    db_session.refresh = MagicMock()
+    db_session.add = MagicMock()
+
+    # Create crud_attendant with its dependencies mocked
     crud_attendant = CRUDAttendant()
 
     # Patch user creation to return a dummy user with valid id, name, and role.
@@ -120,9 +124,30 @@ async def test_create_attendant_success(db_session, user_data, mocker):
     dummy_user.attendant = None
     mocker.patch.object(CRUDUser, "create", return_value=dummy_user)
 
+    # For synchronous specialty lookup
+    dummy_query = DummyQuery(return_value=None)
+    db_session.query = MagicMock(return_value=dummy_query)
+
+    # Mock the team-related async method
+    mock_team = Team(team_name="Team A")
+    mocker.patch(
+        "backendeldery.crud.team.CRUDTeam.get_by_name",
+        return_value=mock_team,
+    )
+
+    # Mock the function-related async method
+    mock_function = Function(name="Doctor")
+    mocker.patch(
+        "backendeldery.crud.function.CRUDFunction.get_by_name",
+        return_value=mock_function,
+    )
+
+    # Run the test
     created_user = await crud_attendant.create(
         db=db_session, obj_in=user_data, created_by=1, user_ip="127.0.0.1"
     )
+
+    # Check basic assertions
     assert created_user.email == user_data.email
     assert created_user.phone == user_data.phone
 
@@ -176,12 +201,20 @@ async def test_create_attendant_rollback_on_error(db_session, user_data, mocker)
 
 @pytest.mark.asyncio
 async def test_create_attendant_new_specialty(db_session, user_data, mocker):
+    # Convert db_session to AsyncMock
+    db_session = MagicMock()
+    db_session.commit = MagicMock()
+    db_session.refresh = MagicMock()
+    db_session.add = MagicMock()
+
     # Modify the attendant_data to include a new specialty.
     user_data.attendant_data.specialties = ["New Specialty"]
+
+    # For synchronous specialty lookup
     dummy_query = mocker.MagicMock()
-    # Simulate specialty not found.
     dummy_query.filter.return_value.first.return_value = None
-    mocker.patch.object(db_session, "query", return_value=dummy_query)
+    db_session.query = MagicMock(return_value=dummy_query)
+
     crud_attendant = CRUDAttendant()
 
     # Patch user creation to return a dummy user with valid id, name, and role.
@@ -195,9 +228,24 @@ async def test_create_attendant_new_specialty(db_session, user_data, mocker):
     dummy_user.attendant = None
     mocker.patch.object(CRUDUser, "create", return_value=dummy_user)
 
+    # Mock the team-related async method
+    mock_team = Team(team_name="Team A")
+    mocker.patch(
+        "backendeldery.crud.team.CRUDTeam.get_by_name",
+        return_value=mock_team,
+    )
+
+    # Mock the function-related async method
+    mock_function = Function(name="Doctor")
+    mocker.patch(
+        "backendeldery.crud.function.CRUDFunction.get_by_name",
+        return_value=mock_function,
+    )
+
     created_user = await crud_attendant.create(
         db=db_session, obj_in=user_data, created_by=1, user_ip="127.0.0.1"
     )
+
     # Directly check the specialty_names list.
     assert created_user.attendant_data is not None
     assert "New Specialty" in created_user.attendant_data.specialty_names
@@ -205,12 +253,21 @@ async def test_create_attendant_new_specialty(db_session, user_data, mocker):
 
 @pytest.mark.asyncio
 async def test_create_attendant_with_new_team(db_session, user_data, mocker):
+    # Convert db_session to AsyncMock
+    db_session = MagicMock()
+    db_session.commit = MagicMock()
+    db_session.refresh = MagicMock()
+    db_session.add = MagicMock()
+
     # Modify the attendant_data to include a new team.
     user_data.attendant_data.team_names = ["New Team"]
+
+    # For synchronous lookups
     dummy_query = mocker.MagicMock()
-    # Simulate team not found.
+    # Simulate team not found
     dummy_query.filter.return_value.first.return_value = None
-    mocker.patch.object(db_session, "query", return_value=dummy_query)
+    db_session.query = MagicMock(return_value=dummy_query)
+
     crud_attendant = CRUDAttendant()
 
     # Patch user creation to return a dummy user with valid id, name, and role.
@@ -224,22 +281,50 @@ async def test_create_attendant_with_new_team(db_session, user_data, mocker):
     dummy_user.attendant = None
     mocker.patch.object(CRUDUser, "create", return_value=dummy_user)
 
+    # Mock the team-related async method - return None to simulate team not found
+    mocker.patch(
+        "backendeldery.crud.team.CRUDTeam.get_by_name",
+        return_value=None,
+    )
+
+    # Mock the team creation method
+    mock_team = Team(team_name="New Team")
+    mocker.patch(
+        "backendeldery.crud.team.CRUDTeam.create",
+        return_value=mock_team,
+    )
+
+    # Mock the function-related async method
+    mock_function = Function(name="Doctor")
+    mocker.patch(
+        "backendeldery.crud.function.CRUDFunction.get_by_name",
+        return_value=mock_function,
+    )
+
     created_user = await crud_attendant.create(
         db=db_session, obj_in=user_data, created_by=1, user_ip="127.0.0.1"
     )
+
     # Directly check the team_names list.
     assert created_user.attendant_data is not None
     assert "New Team" in created_user.attendant_data.team_names
 
 
 @pytest.mark.asyncio
-async def test_create_attendant_with_new_function(db_session, user_data, mocker):
-    # Modify the attendant_data to include a new function as a string.
+async def test_create_attendant_with_new_function(async_db_session, user_data, mocker):
+    # Create the synchronous db_session mock.
+    db_session = MagicMock()
+    db_session.commit = MagicMock()
+    db_session.refresh = MagicMock()
+    db_session.add = MagicMock()
+
     user_data.attendant_data.function_names = "New Function"
+
+    # Set up query on db_session, not async_db_session.
     dummy_query = mocker.MagicMock()
-    # Simulate function not found.
     dummy_query.filter.return_value.first.return_value = None
-    mocker.patch.object(db_session, "query", return_value=dummy_query)
+    db_session.query = MagicMock(return_value=dummy_query)
+
     crud_attendant = CRUDAttendant()
 
     # Patch user creation to return a dummy user with valid id, name, and role.
@@ -251,14 +336,51 @@ async def test_create_attendant_with_new_function(db_session, user_data, mocker)
         role=user_data.role,
     )
     dummy_user.attendant = None
-    mocker.patch.object(CRUDUser, "create", return_value=dummy_user)
+    mocker.patch.object(
+        CRUDUser, "create", new_callable=AsyncMock, return_value=dummy_user
+    )
 
+    # Mock the team-related method.
+    mock_team = Team(team_name="Team A")
+    mocker.patch(
+        "backendeldery.crud.team.CRUDTeam.get_by_name",
+        return_value=mock_team,
+    )
+
+    # Mock the function-related methods.
+    mocker.patch(
+        "backendeldery.crud.function.CRUDFunction.get_by_name",
+        return_value=None,
+    )
+    mock_function = Function(name="New Function")
+    mocker.patch(
+        "backendeldery.crud.function.CRUDFunction.create",
+        return_value=mock_function,
+    )
+
+    # Pass the correct db_session to the create method.
     created_user = await crud_attendant.create(
         db=db_session, obj_in=user_data, created_by=1, user_ip="127.0.0.1"
     )
-    # Directly check the function_names list.
+
+    # Directly check the function_names attribute in the response
     assert created_user.attendant_data is not None
     assert created_user.attendant_data.function_names == "New Function"
+
+    # Verify synchronous query-related calls
+    db_session.query.assert_called_once()
+    db_session.query.return_value.filter.assert_called_once()
+    db_session.query.return_value.filter.return_value.first.assert_called_once()
+    CRUDUser.create.assert_awaited_once()
+
+    # Since commit is synchronous, check that it was called three times.
+    assert db_session.commit.call_count == 3
+
+    # Check that refresh was called with dummy_user at least once.
+    refresh_called_with_dummy_user = any(
+        call.args[0] == dummy_user for call in db_session.refresh.call_args_list
+    )
+    assert refresh_called_with_dummy_user
 
 
 @pytest.mark.asyncio

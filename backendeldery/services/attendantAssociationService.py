@@ -1,3 +1,5 @@
+import logging
+import traceback
 from typing import Optional, List, Set, Dict
 
 from sqlalchemy import select
@@ -13,6 +15,15 @@ from backendeldery.models import (
     Specialty,
 )
 
+logger = logging.getLogger("backendeldery")
+logger.setLevel(logging.INFO)
+if not logger.hasHandlers():
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
+    logger.addHandler(console_handler)
+
 
 class AttendantAssociationService:
     def __init__(self, db: AsyncSession, user_id: int, updated_by: int, user_ip: str):
@@ -27,7 +38,10 @@ class AttendantAssociationService:
         if not team_names:
             return
         existing_team_ids = await self._get_existing_team_ids()
+        logger.info("###########Times existentes: %s", existing_team_ids)
+        logger.info("###########Times names: %s", team_names)
         team_map = await self._get_or_create_teams(team_names, crud_team)
+        logger.info("###########Times maps: %s", team_map)
         await self._create_new_team_associations(team_map, existing_team_ids)
 
     async def _get_existing_team_ids(self) -> Set[int]:
@@ -44,11 +58,15 @@ class AttendantAssociationService:
         unique_names = set(team_names)
         teams = {}
         for name in unique_names:
-            team = await crud_team.get_by_name(self.db, name)
+            team = await crud_team.get_by_name_async(self.db, name)
             if not team:
-                team = await crud_team.create(
-                    self.db, name, "default", self.updated_by, self.user_ip
-                )
+                try:
+                    team = await crud_team.create_async(
+                        self.db, name, "default", self.updated_by, self.user_ip
+                    )
+                except Exception as e:
+                    logger.error("Error in team_create: %s", traceback.format_exc())
+                    raise
             teams[name] = team
         return teams
 
@@ -65,6 +83,7 @@ class AttendantAssociationService:
             for team in team_map.values()
             if team.team_id not in existing_team_ids
         ]
+        logger.info("###########New associations: %s", new_associations)
         if new_associations:
             self.db.add_all(new_associations)
 
@@ -77,7 +96,7 @@ class AttendantAssociationService:
         result = await self.db.execute(
             select(Function).where(Function.name == function_name)
         )
-        function = await result.scalars().first()
+        function = result.scalars().first()
         if not function:
             function = await crud_function.create(
                 self.db,

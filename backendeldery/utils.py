@@ -1,9 +1,11 @@
-import bcrypt
-from sqlalchemy.orm import Session
-from fastapi import HTTPException
-from typing import Optional
-from backendeldery.database import db_instance
 from datetime import datetime, timezone
+from typing import Optional
+
+import bcrypt
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
+from backendeldery.database import db_instance
 
 
 def obj_to_dict(obj, exclude_fields=None):
@@ -95,3 +97,11 @@ def get_db():
     Dependency to get the database session.
     """
     yield from db_instance.get_db()
+
+
+async def get_db_aync():
+    """
+    Dependency to get the database async session.
+    """
+    async for session in db_instance.get_async_db():
+        yield session

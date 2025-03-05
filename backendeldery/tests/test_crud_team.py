@@ -16,6 +16,7 @@ def crud():
 @pytest.mark.asyncio
 async def test_get_by_name(crud):
     db = MagicMock()
+
     fake_team = Team(
         team_name="UniqueTeam",
         team_site="SiteA",
@@ -23,10 +24,21 @@ async def test_get_by_name(crud):
         user_ip="127.0.0.1",
         updated_by=None,
     )
-    db.query.return_value.filter.return_value.first.return_value = fake_team
+
+    # Mock the result chain
+    mock_first = MagicMock(return_value=fake_team)
+    mock_filter = MagicMock()
+    mock_filter.first = mock_first
+
+    db.query.return_value.filter.return_value = mock_filter
+
     result = await crud.get_by_name(db, "UniqueTeam")
-    assert result is fake_team
-    db.query.assert_called_once_with(Team)
+    assert result.team_name == fake_team.team_name
+    assert result.team_site == fake_team.team_site
+    assert result.created_by == fake_team.created_by
+    assert result.user_ip == fake_team.user_ip
+    assert result.updated_by == fake_team.updated_by
+    db.query.return_value.filter.assert_called_once()
 
 
 @pytest.mark.asyncio

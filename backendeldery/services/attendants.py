@@ -45,3 +45,29 @@ class AttendantService:
             raise e
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    @staticmethod
+    async def update(db, user_id, user_update, user_ip, updated_by):
+        """
+        Updates an attendant's information in the system.
+
+        Parameters:
+            db: Database session instance used for database operations.
+            user_id: Unique identifier of the attendant to update.
+            user_update: Data containing updated user information.
+            user_ip: IP address from which the update request originated.
+            updated_by: Identifier of the user performing the update.
+
+        Returns:
+            The updated attendant record.
+        """
+        try:
+            await CRUDAttendant().update(db, user_id, user_update, updated_by, user_ip)
+            updated_attendant = await CRUDAttendant().get_async(db, user_id)
+            if not updated_attendant:
+                raise HTTPException(status_code=404, detail="Attendant not found")
+            return updated_attendant  # Already in final form.
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error on updating: {str(e)}")

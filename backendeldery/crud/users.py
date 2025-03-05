@@ -2,9 +2,10 @@ import logging
 from typing import Optional
 
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy import update
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.future import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, joinedload
 
 from backendeldery.models import (
@@ -81,34 +82,41 @@ class CRUDUser(CRUDBase[User, UserCreate]):
 
     async def update(
         self,
-        db: Session,
+        db: AsyncSession,
         user_id: int,
         update_data: UserUpdate,
         updated_by: int,
         user_ip: str,
-    ):
-        """Update User fields dynamically including audit fields"""
+    ) -> User:
+        from sqlalchemy import select
 
-        user = db.query(User).filter(User.id == user_id).first()
+        # Ensure update_data is a Pydantic model.
+        if not hasattr(update_data, "model_dump"):
+            update_data = UserUpdate(**update_data)
+
+        result = await db.execute(select(User).filter(User.id == user_id))
+        user = result.scalar_one_or_none()
         if not user:
-            raise ValueError("User not found")
+            raise HTTPException(status_code=404, detail="User not found")
 
-        # Filter fields to update
+        # Determine allowed fields (columns) to update.
+        allowed_fields = set(User.__table__.columns.keys())
+        # Exclude relationship fields like "attendant_data" or "client_data"
         user_data = {
             k: v
             for k, v in update_data.model_dump(exclude_unset=True).items()
-            if v is not None
+            if v is not None and k in allowed_fields
         }
 
-        # Apply updates dynamically
+        # Apply the filtered updates
         for key, value in user_data.items():
             setattr(user, key, value)
 
-        # Update audit data
+        # Update audit fields
         user.updated_by = updated_by
         user.user_ip = user_ip
 
-        db.add(user)  # No commit here; transaction is managed by caller
+        db.add(user)
         return user
 
 

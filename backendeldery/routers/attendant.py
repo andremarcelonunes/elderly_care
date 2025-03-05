@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, Body, HTTPException, Request, Header
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from backendeldery.schemas import UserCreate
+from backendeldery.schemas import UserCreate, UserResponse, UserUpdate
 from backendeldery.services.attendants import AttendantService
-from backendeldery.utils import get_db
+from backendeldery.utils import get_db, get_db_aync
 
 router = APIRouter()
 
@@ -78,4 +79,52 @@ async def get_attendant(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error retrieving attendant: {str(e)}"
+        )
+
+
+@router.put("/attendants/{user_id}", response_model=UserResponse)
+async def update_attendant(
+    user_id: int,
+    user_update: UserUpdate = Body(
+        example={
+            "email": "new.email@example.com",
+            "phone": "+123456789",
+            "active": True,
+            "attendant_data": {
+                "address": "456 New St",
+                "neighborhood": "Uptown",
+                "city": "New City",
+                "state": "NC",
+                "code_address": "67890",
+                "registro_conselho": "RJ-123456",
+                "nivel_experiencia": "senior",
+                "formacao": "Nursing",
+                "specialties": ["Pediatrics"],
+                "team_names": ["Team B"],
+                "function_names": "Nurse",
+            },
+        }
+    ),
+    db: AsyncSession = Depends(get_db_aync),
+    request: Request = None,
+    x_user_id: int = Header(...),
+):
+    """
+    Endpoint to update an existing Attendant. Inform only the fields you want to update.
+    """
+    try:
+        client_ip = request.client.host if request else "unknown"
+        updated_user = await AttendantService.update(
+            db=db,
+            user_id=user_id,
+            user_update=user_update,
+            user_ip=client_ip,
+            updated_by=x_user_id,
+        )
+        return updated_user
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error on update Attendant: {str(e)}"
         )

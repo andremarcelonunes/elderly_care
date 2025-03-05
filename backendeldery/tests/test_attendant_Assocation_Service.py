@@ -161,13 +161,15 @@ async def test_get_or_create_teams(mocker):
         db_mock, user_id=1, updated_by=1, user_ip="127.0.0.1"
     )
 
-    async def mock_get_by_name(db, name):
+    async def mock_get_by_name_async(db, name):
         return None
 
     async def mock_create(db, team_name, team_site, created_by, user_ip):
         return Team(team_id=1, team_name=team_name)
 
-    mocker.patch.object(crud_team_mock, "get_by_name", side_effect=mock_get_by_name)
+    mocker.patch.object(
+        crud_team_mock, "get_by_name_async", side_effect=mock_get_by_name_async
+    )
     mocker.patch.object(crud_team_mock, "create", side_effect=mock_create)
 
     result = await service._get_or_create_teams(["Team A"], crud_team_mock)
