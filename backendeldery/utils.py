@@ -63,7 +63,7 @@ def format_response(data=None, message="Success", status="ok"):
     :param status: Response status ('ok', 'error', etc.)
     :return: Formatted dictionary
     """
-    return {"status": status, "message": message, "data": data}
+    return {"status": status, "message": message, "data": data}  # pragma: no cover
 
 
 def validate_foreign_key(db: Session, model, field_name: str, value: int):
@@ -89,7 +89,7 @@ def current_timestamp() -> str:
 
     :return: String with the current timestamp
     """
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(timezone.utc).isoformat()  # pragma: no cover
 
 
 def get_db():

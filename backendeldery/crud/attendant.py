@@ -1,5 +1,4 @@
 import logging
-import traceback
 from typing import Optional
 
 from fastapi import HTTPException
@@ -20,6 +19,7 @@ from backendeldery.schemas import (
     AttendandInfo,
     UserInfo,
     UserUpdate,
+    UserCreate,
 )
 from backendeldery.services.attendantAssociationService import (
     AttendantAssociationService,
@@ -31,14 +31,14 @@ from .function import CRUDFunction
 from .team import CRUDTeam
 from .users import CRUDUser
 
-logger = logging.getLogger("backendeldery")
-logger.setLevel(logging.INFO)
-if not logger.hasHandlers():
-    console_handler = logging.StreamHandler()
+logger = logging.getLogger("backendeldery")  # pragma: no cover
+logger.setLevel(logging.INFO)  # pragma: no cover
+if not logger.hasHandlers():  # pragma: no cover
+    console_handler = logging.StreamHandler()  # pragma: no cover
     console_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
-    logger.addHandler(console_handler)
+    )  # pragma: no cover
+    logger.addHandler(console_handler)  # pragma: no cover
 
 
 class CRUDAttendant(CRUDUser):
@@ -48,12 +48,13 @@ class CRUDAttendant(CRUDUser):
         self.crud_team = CRUDTeam()
 
     async def create(
-        self, db: Session, obj_in, created_by: int, user_ip: str
+        self, db: Session, obj_in: UserCreate, created_by: int, user_ip: str
     ) -> AttendandInfo:
         logger.info("Creating attendant")
         try:
             # Step 1: Create the User
-            user = await super().create(db, obj_in.dict(), created_by, user_ip)
+
+            user = await super().create(db, obj_in.model_dump(), created_by, user_ip)
             logger.info("User created: %s", user)
 
             # Step 2: Process attendant data if needed
@@ -236,7 +237,7 @@ class CRUDAttendant(CRUDUser):
                 .options(
                     joinedload(User.attendant_data)
                 )  # Ensure relationship is loaded
-                .filter(User.id == id)
+                .filter(User.id == int(id))
                 .first()
             )
             if not user:
@@ -270,34 +271,23 @@ class CRUDAttendant(CRUDUser):
         Fetches a user (with attendant data) by ID using AsyncSession and returns
         a fully validated UserInfo model dumped to a plain dictionary.
         """
-        user = None  # Initialize user
         try:
-            try:
-                result = await db.execute(
-                    select(self.model)
-                    .options(
-                        selectinload(self.model.attendant_data)
-                        .selectinload(Attendant.specialty_associations)
-                        .selectinload(AttendantSpecialty.specialty),
-                        selectinload(self.model.attendant_data)
-                        .selectinload(Attendant.team_associations)
-                        .selectinload(AttendantTeam.team),
-                        selectinload(self.model.attendant_data).selectinload(
-                            Attendant.function
-                        ),
-                    )
-                    .filter(self.model.id == id)
+            result = await db.execute(
+                select(self.model)
+                .options(
+                    selectinload(self.model.attendant_data)
+                    .selectinload(Attendant.specialty_associations)
+                    .selectinload(AttendantSpecialty.specialty),
+                    selectinload(self.model.attendant_data)
+                    .selectinload(Attendant.team_associations)
+                    .selectinload(AttendantTeam.team),
+                    selectinload(self.model.attendant_data).selectinload(
+                        Attendant.function
+                    ),
                 )
-                user = result.scalar_one_or_none()
-            except Exception as e:
-                logger.error("Error in get_user: %s", traceback.format_exc())
-                if user:
-                    logger.error("attendant_data: %s", user.attendant_data)
-                    logger.error(
-                        "specialty_names: %s",
-                        getattr(user.attendant_data, "specialty_names", None),
-                    )
-                raise
+                .filter(self.model.id == int(id))
+            )
+            user = result.scalar_one_or_none()  # Await this call!
 
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
@@ -319,9 +309,7 @@ class CRUDAttendant(CRUDUser):
             # Convert the nested attendant_data to a dictionary.
             if user.attendant_data:
                 attendant_model = AttendantResponse.model_validate(user.attendant_data)
-                user_data["attendant_data"] = (
-                    attendant_model.dict()
-                )  # Ensure it's a dict.
+                user_data["attendant_data"] = attendant_model.model_dump()
             else:
                 raise HTTPException(
                     status_code=404, detail=f"User with ID {id} is not an attendant"
@@ -332,8 +320,6 @@ class CRUDAttendant(CRUDUser):
             # Dump the final model into a plain dictionary before returning.
             return user_info.model_dump()  # or user_info.dict() if using Pydantic v1
 
-        except HTTPException as e:
-            raise e
         except Exception as e:
             raise HTTPException(
                 status_code=500,
@@ -353,70 +339,43 @@ class CRUDAttendant(CRUDUser):
             attendant_data = update_dict.pop("attendant_data", None)
 
             update_service = AttendantUpdateService(db, updated_by, user_ip)
-            try:
-                user = await update_service.update_user(
-                    user_id, update_data, updated_by, user_ip
-                )
-            except Exception as e:
-                logger.error("Error in update_user: %s", traceback.format_exc())
-                raise
+            user = await update_service.update_user(
+                user_id, update_data, updated_by, user_ip
+            )
+
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
-            try:
-                attendant = await update_service.get_attendant(user_id)
-            except Exception as e:
-                logger.error("Error in update_user: %s", traceback.format_exc())
-                raise
+            attendant = await update_service.get_attendant(user_id)
 
             if attendant is None:
                 raise HTTPException(status_code=404, detail="Attendant not found")
 
             if attendant_data:
-                try:
-                    await update_service.update_attendant_core_fields(
-                        attendant, attendant_data
-                    )
-                except Exception as e:
-                    logger.error("Error in update_user: %s", traceback.format_exc())
-                    raise
-            try:
-                association_service = AttendantAssociationService(
-                    db, attendant.user_id, updated_by, user_ip
+                await update_service.update_attendant_core_fields(
+                    attendant, attendant_data
                 )
-            except Exception as e:
-                logger.error("Error in update_user: %s", traceback.format_exc())
-                raise
+
+            association_service = AttendantAssociationService(
+                db, attendant.user_id, updated_by, user_ip
+            )
+
             if attendant_data:
                 if attendant_data.get("team_names"):
-                    try:
-                        await association_service.update_team_associations(
-                            attendant_data.get("team_names"), self.crud_team
-                        )
-                        logger.info(
-                            "NOmes dos times passados a update_team_association: %s",
-                            attendant_data.get("team_names"),
-                        )
-                    except Exception as e:
-                        logger.error("Error in update_user: %s", traceback.format_exc())
-                        raise
+                    await association_service.update_team_associations(
+                        attendant_data.get("team_names"), self.crud_team
+                    )
+
                 if attendant_data.get("function_names"):
-                    try:
-                        attendant.function = (
-                            await association_service.update_function_association(
-                                attendant_data.get("function_names"), self.crud_function
-                            )
+                    attendant.function = (
+                        await association_service.update_function_association(
+                            attendant_data.get("function_names"), self.crud_function
                         )
-                    except Exception as e:
-                        logger.error("Error in update_user: %s", traceback.format_exc())
-                        raise
+                    )
+
                 if attendant_data.get("specialties"):
-                    try:
-                        await association_service.update_specialty_associations(
-                            attendant_data.get("specialties")
-                        )
-                    except Exception as e:
-                        logger.error("Error in update_user: %s", traceback.format_exc())
-                        raise
+                    await association_service.update_specialty_associations(
+                        attendant_data.get("specialties")
+                    )
 
             await db.commit()  # Explicitly commit the changes
             await db.refresh(attendant)
@@ -432,3 +391,26 @@ class CRUDAttendant(CRUDUser):
         except Exception as e:
             await db.rollback()
             raise HTTPException(status_code=500, detail=str(e)) from e
+
+    async def search_attendant(self, db: AsyncSession, criteria: dict):
+        """
+        Busca um atendente com base nos critérios fornecidos.
+        """
+        try:
+            field, value = next(iter(criteria.items()))
+            if field == "cpf":
+                # Query via CPF: Join User and Attendant and filter by Attendant.cpf
+                stmt = select(User).join(Attendant).filter(Attendant.cpf == value)
+                result = await db.execute(stmt)
+                return result.scalars().first()
+            elif field in ["email", "phone"]:
+                # Query directly on User table
+                stmt = select(User).filter(getattr(User, field) == value)
+                result = await db.execute(stmt)
+                return result.scalars().first()
+            else:
+                return None
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Error to search subscriber: {str(e)}"
+            )

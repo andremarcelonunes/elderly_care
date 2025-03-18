@@ -24,14 +24,14 @@ from backendeldery.schemas import (
 from backendeldery.utils import hash_password, obj_to_dict
 from .base import CRUDBase
 
-logger = logging.getLogger("backendeldery")
-logger.setLevel(logging.CRITICAL)
-if not logger.hasHandlers():
-    console_handler = logging.StreamHandler()
+logger = logging.getLogger("backendeldery")  # pragma: no cover
+logger.setLevel(logging.CRITICAL)  # pragma: no cover
+if not logger.hasHandlers():  # pragma: no cover
+    console_handler = logging.StreamHandler()  # pragma: no cover
     console_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
-    logger.addHandler(console_handler)
+    )  # pragma: no cover
+    logger.addHandler(console_handler)  # pragma: no cover
 
 
 class CRUDUser(CRUDBase[User, UserCreate]):

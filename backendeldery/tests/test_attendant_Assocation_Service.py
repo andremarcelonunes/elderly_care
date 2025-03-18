@@ -1,8 +1,10 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backendeldery.crud.team import CRUDTeam
 from backendeldery.models import (
     Team,
     Specialty,
@@ -155,28 +157,30 @@ async def test_get_existing_team_ids(mocker):
 
 @pytest.mark.asyncio
 async def test_get_or_create_teams(mocker):
-    db_mock = MagicMock(spec=AsyncSession)
-    crud_team_mock = MagicMock()
-    service = AttendantAssociationService(
-        db_mock, user_id=1, updated_by=1, user_ip="127.0.0.1"
-    )
+    # Arrange
+    db = mocker.AsyncMock()
+    user_id = 1
+    updated_by = 2
+    user_ip = "127.0.0.1"
 
-    async def mock_get_by_name_async(db, name):
-        return None
+    service = AttendantAssociationService(db, user_id, updated_by, user_ip)
 
-    async def mock_create(db, team_name, team_site, created_by, user_ip):
-        return Team(team_id=1, team_name=team_name)
+    # Create mock team and crud_team
+    mock_team = mocker.MagicMock()
+    mock_team.team_id = 1
+    mock_team.team_name = "Team A"
 
-    mocker.patch.object(
-        crud_team_mock, "get_by_name_async", side_effect=mock_get_by_name_async
-    )
-    mocker.patch.object(crud_team_mock, "create", side_effect=mock_create)
+    mock_crud_team = mocker.AsyncMock()
+    mock_crud_team.get_by_name_async.return_value = mock_team
 
-    result = await service._get_or_create_teams(["Team A"], crud_team_mock)
+    # Act
+    result = await service._get_or_create_teams(["Team A"], mock_crud_team)
 
-    expected_team = Team(team_id=1, team_name="Team A")
-    assert result["Team A"].team_id == expected_team.team_id
-    assert result["Team A"].team_name == expected_team.team_name
+    # Assert
+    mock_crud_team.get_by_name_async.assert_called_once_with(db, "Team A")
+    mock_crud_team.create_async.assert_not_called()
+    assert "Team A" in result
+    assert result["Team A"] == mock_team
 
 
 @pytest.mark.asyncio
@@ -258,3 +262,141 @@ async def test_create_specialty_associations(mocker):
     )
 
     db_mock.add_all.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_delete_team_relation_success(mocker):
+    # Arrange
+    db = mocker.AsyncMock()
+    attendant_id = 1
+    team_id = 2
+    user_ip = "192.168.1.1"
+    updated_by = 3
+
+    # Mock the association object
+    mock_association = mocker.MagicMock()
+
+    # Mock the query result
+    mock_result = mocker.MagicMock()
+    mock_result.scalars.return_value.first.return_value = mock_association
+    db.execute.return_value = mock_result
+
+    # Create service instance with audit information
+    service = AttendantAssociationService(
+        db=db, user_id=attendant_id, updated_by=updated_by, user_ip=user_ip
+    )
+
+    # Act
+    result = await service.delete_team_relation(
+        db=db, attendant_id=attendant_id, team_id=team_id
+    )
+
+    # Assert
+    assert result["status"] == "success"
+    assert (
+        f"Team association between attendant {attendant_id} and team {team_id} deleted successfully"
+        in result["message"]
+    )
+    assert mock_association.updated_by == updated_by
+    assert mock_association.user_ip == user_ip
+    db.delete.assert_called_once_with(mock_association)
+    db.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_creates_new_team_associations(mocker):
+    # Arrange
+    db_mock = mocker.AsyncMock()
+    user_id = 1
+    updated_by = 2
+    user_ip = "127.0.0.1"
+
+    service = AttendantAssociationService(db_mock, user_id, updated_by, user_ip)
+
+    # Mock existing team IDs
+    existing_team_ids = {1}
+    mocker.patch.object(
+        service, "_get_existing_team_ids", return_value=existing_team_ids
+    )
+
+    # Create team objects
+    team1 = mocker.MagicMock(team_id=1)
+    team2 = mocker.MagicMock(team_id=2)
+    team_map = {"Team1": team1, "Team2": team2}
+
+    # Mock get_or_create_teams
+    mocker.patch.object(service, "_get_or_create_teams", return_value=team_map)
+
+    # Mock create_new_team_associations
+    create_associations_mock = mocker.patch.object(
+        service, "_create_new_team_associations"
+    )
+
+    crud_team = mocker.MagicMock(spec=CRUDTeam)
+
+    # Act
+    await service.update_team_associations(["Team1", "Team2"], crud_team)
+
+    # Assert
+    service._get_existing_team_ids.assert_called_once()
+    service._get_or_create_teams.assert_called_once_with(["Team1", "Team2"], crud_team)
+    create_associations_mock.assert_called_once_with(team_map, existing_team_ids)
+
+
+@pytest.mark.asyncio
+async def test_function_creation_when_not_exists(mocker):
+    # Arrange
+    mock_db = AsyncMock()
+
+    # Create a result mock that will be returned when execute is awaited
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.first.return_value = None
+
+    # Configure execute to return the expected result when awaited
+    mock_db.execute = AsyncMock(return_value=mock_result)
+
+    mock_crud_function = MagicMock()
+    mock_function = MagicMock()
+    # Set up the create method as an AsyncMock
+    mock_crud_function.create = AsyncMock(return_value=mock_function)
+
+    service = AttendantAssociationService(
+        db=mock_db, user_id=1, updated_by=2, user_ip="127.0.0.1"
+    )
+
+    # Act
+    result = await service.update_function_association(
+        "new_function", mock_crud_function
+    )
+
+    # Assert
+    mock_db.execute.assert_called_once()
+    mock_crud_function.create.assert_called_once_with(
+        mock_db, "new_function", "Auto-created function", 2, "127.0.0.1"
+    )
+    assert result == mock_function
+
+
+@pytest.mark.asyncio
+async def test_delete_team_relation_general_exception(mocker):
+    # Arrange
+    mock_db = AsyncMock()
+
+    # Mock the database to raise an exception
+    mock_db.execute = AsyncMock(side_effect=ValueError("Database error"))
+
+    # Mock the logger to avoid actual logging during test
+    mocker.patch("backendeldery.services.attendantAssociationService.logger")
+    mocker.patch("backendeldery.services.attendantAssociationService.traceback")
+
+    service = AttendantAssociationService(
+        db=mock_db, user_id=1, updated_by=3, user_ip="127.0.0.1"
+    )
+
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc_info:
+        await service.delete_team_relation(mock_db, 1, 2)
+
+    assert exc_info.value.status_code == 500
+    assert "Failed to delete team association" in exc_info.value.detail
+    mock_db.rollback.assert_called_once()

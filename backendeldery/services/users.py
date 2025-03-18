@@ -62,9 +62,26 @@ class UserService:
             user = await crud_specialized_user.get_user_with_client(
                 db=db, user_id=user_id
             )
-            if user:
-                return user
-            return None
+            if not user:
+                return None
+            if user.attendant_data:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"This user is not contact, subscriber ou assisted",
+                )
+
+            client_data = (
+                user.client_data.dict() if getattr(user, "client_data", None) else None
+            )
+            return UserResponse(
+                id=user.id,
+                name=user.name,
+                email=user.email,
+                phone=user.phone,
+                role=user.role,
+                active=user.active,
+                client_data=client_data,
+            )
         except Exception as e:
             raise HTTPException(
                 status_code=500, detail=f"Error in UserService: {str(e)}"

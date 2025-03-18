@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, Body, HTTPException, Request, Header
 from typing import List
+
+from fastapi import APIRouter, Depends, Body, HTTPException, Request, Header
 from sqlalchemy.orm import Session
+
 from backendeldery.schemas import (
     UserCreate,
     UserSearch,
@@ -10,7 +12,6 @@ from backendeldery.schemas import (
     AssistedResponse,
 )
 from backendeldery.services.users import UserService
-
 from backendeldery.utils import get_db
 
 router = APIRouter()
@@ -18,30 +19,30 @@ router = APIRouter()
 
 @router.post("/users/register/subscriber/")
 async def register_subscriber(
-        user: UserCreate = Body(
-            examples=[
-                {
-                    "name": "John Doe",
-                    "email": "john.doe@example.com",
-                    "phone": "+123456789",
-                    "role": "subscriber",
-                    "password": "Strong@123",
-                    "active": True,
-                    "client_data": {
-                        "cpf": "123.456.789-00",
-                        "birthday": "1990-01-01",
-                        "address": "123 Main St",
-                        "city": "Metropolis",
-                        "neighborhood": "Downtown",
-                        "code_address": "12345",
-                        "state": "NY",
-                    },
-                }
-            ]
-        ),
-        db: Session = Depends(get_db),
-        request: Request = None,
-        x_user_id: int = Header(...),
+    user: UserCreate = Body(
+        examples=[
+            {
+                "name": "John Doe",
+                "email": "john.doe@example.com",
+                "phone": "+123456789",
+                "role": "subscriber",
+                "password": "Strong@123",
+                "active": True,
+                "client_data": {
+                    "cpf": "123.456.789-00",
+                    "birthday": "1990-01-01",
+                    "address": "123 Main St",
+                    "city": "Metropolis",
+                    "neighborhood": "Downtown",
+                    "code_address": "12345",
+                    "state": "NY",
+                },
+            }
+        ]
+    ),
+    db: Session = Depends(get_db),
+    request: Request = None,
+    x_user_id: int = Header(...),
 ):
     """
     Endpoint to register a new subscriber. TThat can be subscriber in fact or a client.
@@ -62,10 +63,10 @@ async def register_subscriber(
         )
 
 
-@router.post("/users/search/user/")
+@router.post("/users/search/")
 async def search_user(
-        search_criteria: UserSearch = Body(..., example={"phone": "+123456789"}),
-        db: Session = Depends(get_db),
+    search_criteria: UserSearch = Body(..., example={"phone": "+123456789"}),
+    db: Session = Depends(get_db),
 ):
     """
     Endpoint to search all users by email, phone, or CPF. Only one
@@ -97,10 +98,14 @@ async def search_user(
         )
 
 
-@router.get("/users/user/{user_id}")
+@router.get(
+    "/users/user/{user_id}",
+    response_model=UserResponse,
+    response_model_exclude_none=True,
+)
 async def get_user(
-        user_id: int,
-        db: Session = Depends(get_db),
+    user_id: int,
+    db: Session = Depends(get_db),
 ):
     """
     Endpoint to get information about  all kind of users by  ID.
@@ -118,28 +123,31 @@ async def get_user(
         )
 
 
-@router.put("/users/{user_id}", response_model=UserResponse)
+@router.put(
+    "/users/update/{user_id}",
+    response_model=UserResponse,
+    response_model_exclude_none=True,
+)
 async def update_user(
-        user_id: int,
-        user_update: UserUpdate = Body(
-            examples={
-                "example": {
-                    "email": "new.email@example.com",
-                    "phone": "+123456789",
-                    "active": True,
-                    "client_data": {
-                        "address": "456 New St",
-                        "neighborhood": "Uptown",
-                        "city": "New City",
-                        "state": "NC",
-                        "code_address": "67890",
-                    },
-                }
-            }
-        ),
-        db: Session = Depends(get_db),
-        request: Request = None,
-        x_user_id: int = Header(...),
+    user_id: int,
+    user_update: UserUpdate = Body(
+        example={
+            "email": "new.email@example.com",
+            "phone": "+123456789",
+            "active": True,
+            "client_data": {
+                "team_id": 1,
+                "address": "456 New St",
+                "neighborhood": "Uptown",
+                "city": "New City",
+                "state": "NC",
+                "code_address": "67890",
+            },
+        }
+    ),
+    db: Session = Depends(get_db),
+    request: Request = None,
+    x_user_id: int = Header(...),
 ):
     """
     Endpoint to update an existing user. Inform only the fields you want to update.
@@ -164,14 +172,14 @@ async def update_user(
 
 @router.post("/users/associate/assisted/")
 async def register_assisted(
-        assisted: AssistedCreate = Body(
-            examples=[
-                {"subscriber_id": 1, "assisted_id": 2},
-            ]
-        ),
-        db: Session = Depends(get_db),
-        request: Request = None,
-        x_user_id: int = Header(...),
+    assisted: AssistedCreate = Body(
+        examples=[
+            {"subscriber_id": 1, "assisted_id": 2},
+        ]
+    ),
+    db: Session = Depends(get_db),
+    request: Request = None,
+    x_user_id: int = Header(...),
 ):
     """
     Endpoint to associate  an assisted user to a subscriber.
@@ -197,8 +205,8 @@ async def register_assisted(
     "/users/subscribers/{subscriber_id}/assisted", response_model=List[AssistedResponse]
 )
 async def consult_assisted(
-        subscriber_id: int,
-        db: Session = Depends(get_db),
+    subscriber_id: int,
+    db: Session = Depends(get_db),
 ):
     assisteds = await UserService.get_assisted_clients(db, subscriber_id)
     return [AssistedResponse.from_orm(client) for client in assisteds]
@@ -206,19 +214,19 @@ async def consult_assisted(
 
 @router.post("/users/register/contact/")
 async def register_contact(
-        user: UserCreate = Body(
-            examples=[
-                {
-                    "name": "Jane Doe",
-                    "phone": "+987654321",
-                    "role": "contact",
-                    "active": True,
-                }
-            ]
-        ),
-        db: Session = Depends(get_db),
-        request: Request = None,
-        x_user_id: int = Header(...),
+    user: UserCreate = Body(
+        examples=[
+            {
+                "name": "Jane Doe",
+                "phone": "+987654321",
+                "role": "contact",
+                "active": True,
+            }
+        ]
+    ),
+    db: Session = Depends(get_db),
+    request: Request = None,
+    x_user_id: int = Header(...),
 ):
     """
     Endpoint to register a new contact.
@@ -241,11 +249,11 @@ async def register_contact(
 
 @router.post("/users/associate/contact/")
 async def create_contact_association(
-        client_id: int = Body(..., example=1),
-        user_contact_id: int = Body(..., example=2),
-        db: Session = Depends(get_db),
-        request: Request = None,
-        x_user_id: int = Header(...),
+    client_id: int = Body(..., example=1),
+    user_contact_id: int = Body(..., example=2),
+    db: Session = Depends(get_db),
+    request: Request = None,
+    x_user_id: int = Header(...),
 ):
     """
     Endpoint to create an association between a contact and a client.
@@ -269,8 +277,8 @@ async def create_contact_association(
 
 @router.get("/users/client/{client_id}/contacts", response_model=List[UserResponse])
 async def get_client_contacts(
-        client_id: int,
-        db: Session = Depends(get_db),
+    client_id: int,
+    db: Session = Depends(get_db),
 ):
     """
     Endpoint to retrieve all contacts for a given client.
@@ -290,8 +298,8 @@ async def get_client_contacts(
     "/users/contact/{contact_id}/clients", response_model=List[AssistedResponse]
 )
 async def get_clients_of_contact(
-        contact_id: int,
-        db: Session = Depends(get_db),
+    contact_id: int,
+    db: Session = Depends(get_db),
 ):
     """
     Endpoint to retrieve all clients associated with a given contact.
@@ -324,11 +332,12 @@ async def delete_contact_association(
     """
     try:
         client_ip = request.client.host if request else "unknown"
-        return await UserService.delete_contact_relation(db, client_id,
-                                                         contact_id, user_ip=client_ip,
-                                                         x_user_id=x_user_id)
+        return await UserService.delete_contact_relation(
+            db, client_id, contact_id, user_ip=client_ip, x_user_id=x_user_id
+        )
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Error deleting contact association: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting contact association: {str(e)}"
+        )

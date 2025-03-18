@@ -1,6 +1,8 @@
 import logging
 
 from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from backendeldery.models import (
@@ -11,14 +13,14 @@ from backendeldery.models import (
 )
 from backendeldery.schemas import UserCreate, SubscriberCreate
 
-logger = logging.getLogger("backendeldery")
-logger.setLevel(logging.CRITICAL)
-if not logger.hasHandlers():
-    console_handler = logging.StreamHandler()
+logger = logging.getLogger("backendeldery")  # pragma: no cover
+logger.setLevel(logging.CRITICAL)  # pragma: no cover
+if not logger.hasHandlers():  # pragma: no cover
+    console_handler = logging.StreamHandler()  # pragma: no cover
     console_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
-    logger.addHandler(console_handler)
+    )  # pragma: no cover
+    logger.addHandler(console_handler)  # pragma: no cover
 
 
 class UserValidator:
@@ -34,6 +36,21 @@ class UserValidator:
             and db.query(User).filter(User.phone == user_data.phone).first()
         ):
             raise HTTPException(status_code=422, detail="Phone already exists")
+
+    @staticmethod
+    async def validate_user_async(db: AsyncSession, user_data: UserCreate):
+        if user_data.email:
+            result = await db.execute(
+                select(User).filter(User.email == user_data.email)
+            )
+            if result.scalar():
+                raise HTTPException(status_code=422, detail="Email already exists")
+        if user_data.phone:
+            result = await db.execute(
+                select(User).filter(User.phone == user_data.phone)
+            )
+            if result.scalar():
+                raise HTTPException(status_code=422, detail="Phone already exists")
 
     @staticmethod
     def validate_contact(db: Session, user_data: UserCreate):

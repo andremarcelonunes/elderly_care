@@ -152,6 +152,7 @@ class AttendandInfo(BaseModel):
 
 
 class ClientUpdate(BaseModel):
+    team_id: Optional[int] = None
     address: Optional[str] = None
     neighborhood: Optional[str] = None
     city: Optional[str] = None
@@ -173,7 +174,9 @@ class AttendantUpdate(BaseModel):
     state: Optional[str] = None
     code_address: Optional[str] = None
     registro_conselho: Optional[str] = None
-    nivel_experiencia: Literal["junior", "pleno", "senior", "especialista"]
+    nivel_experiencia: Optional[
+        Literal["junior", "pleno", "senior", "especialista"]
+    ] = None
     formacao: Optional[str] = None
     specialties: Optional[List[str]] = []
     team_names: Optional[List[str]] = []
@@ -224,6 +227,39 @@ class AssistedResponse(BaseModel):
     assisted: UserResponse = Field(..., alias="user")
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AttendantData(BaseModel):
+    cpf: str
+    birthday: Optional[date] = None
+    address: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    code_address: Optional[str] = None
+    registro_conselho: Optional[str] = None
+    nivel_experiencia: Optional[str] = None
+    formacao: Optional[str] = None
+    user_ip: Optional[str] = None
+    function_id: Optional[int] = None
+    # Usamos alias para mapear a propriedade híbrida specialty_names para specialties
+    specialties: List[str] = Field(default_factory=list, alias="specialty_names")
+    team_names: List[str] = Field(default_factory=list)
+    function_names: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AttendantTimeResponse(BaseModel):
+    id: int
+    name: str
+    email: Optional[str] = None
+    phone: str
+    role: str
+    active: bool
+    attendant_data: Optional[AttendantData] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -15,6 +15,7 @@ from backendeldery.models import (
     Attendant,
     Function,
     Team,
+    Specialty,
 )
 from backendeldery.schemas import (
     UserCreate,
@@ -23,6 +24,9 @@ from backendeldery.schemas import (
     UserInfo,
     AttendantUpdate,
     UserUpdate,
+)
+from backendeldery.services.attendantAssociationService import (
+    AttendantAssociationService,
 )
 
 
@@ -100,6 +104,15 @@ def user_data():
             function_names="Doctor",
         ),
     )
+
+
+# Create simple dummy classes to use as returned objects.
+class DummyUser:
+    pass
+
+
+class DummyAttendant:
+    pass
 
 
 @pytest.mark.asyncio
@@ -491,6 +504,89 @@ async def test_get_attendant_no_attendant_data():
 
 
 @pytest.mark.asyncio
+async def test_get_async_retrieves_user_with_attendant_data(mocker):
+    # Arrange
+    db = mocker.AsyncMock()
+    user_id = 1
+
+    # Mock user with attendant data
+    mock_user = mocker.Mock()
+    mock_user.id = user_id
+    mock_user.name = "Test User"
+    mock_user.email = "test@example.com"
+    mock_user.phone = "123456789"
+    mock_user.role = "attendant"
+    mock_user.active = True
+    mock_user.client_data = None
+
+    # Mock attendant data
+    mock_attendant = mocker.Mock()
+    mock_attendant.cpf = "12345678901"
+    mock_attendant.birthday = date(1990, 1, 1)
+    mock_attendant.nivel_experiencia = "senior"
+    mock_attendant.specialty_names = ["Specialty1", "Specialty2"]
+    mock_attendant.team_names = ["Team1"]
+
+    mock_user.attendant_data = mock_attendant
+
+    # Mock the database execution
+    mock_result = mocker.AsyncMock()
+    mock_result.scalar_one_or_none = mocker.Mock(return_value=mock_user)
+    db.execute.return_value = mock_result
+
+    # Mock the AttendantResponse validation
+    mock_attendant_model = mocker.Mock()
+    mock_attendant_model.dict.return_value = {
+        "cpf": "12345678901",
+        "birthday": date(1990, 1, 1),
+        "nivel_experiencia": "senior",
+        "specialty_names": ["Specialty1", "Specialty2"],
+        "team_names": ["Team1"],
+        "address": None,
+        "neighborhood": None,
+        "city": None,
+        "state": None,
+        "code_address": None,
+        "registro_conselho": None,
+        "formacao": None,
+        "function_names": None,
+    }
+    mocker.patch(
+        "backendeldery.schemas.AttendantResponse.model_validate",
+        return_value=mock_attendant_model,
+    )
+
+    # Mock the UserInfo validation
+    expected_result = {
+        "id": user_id,
+        "name": "Test User",
+        "email": "test@example.com",
+        "phone": "123456789",
+        "role": "attendant",
+        "active": True,
+        "client_data": None,
+        "attendant_data": mock_attendant_model.dict.return_value,
+    }
+    mock_user_info = mocker.Mock()
+    mock_user_info.model_dump.return_value = expected_result
+    mocker.patch(
+        "backendeldery.schemas.UserInfo.model_validate", return_value=mock_user_info
+    )
+
+    # Create the CRUD instance
+    crud = CRUDAttendant()
+
+    # Act
+    result = await crud.get_async(db, user_id)
+
+    # Assert
+    assert result == expected_result
+    db.execute.assert_called_once()
+    assert result["id"] == user_id
+    assert result["attendant_data"] is not None
+
+
+@pytest.mark.asyncio
 async def test_set_function_association(db_session, user_data, mocker):
     crud_attendant = CRUDAttendant()
     attendant = Attendant(user_id=1)
@@ -538,19 +634,75 @@ async def test_add_team_associations(db_session, user_data, mocker):
 
 
 @pytest.mark.asyncio
-async def test_add_specialties(db_session, user_data, mocker):
+async def test_add_existing_specialty(mocker):
+    # Arrange
+    db = mocker.MagicMock()
+
+    # Instead of using spec=Attendant (which triggers evaluation of hybrid properties),
+    # define a custom spec_set with only the attributes _add_specialties will use.
+    attendant_spec = ["user_id", "specialty_associations", "specialties"]
+    attendant = mocker.MagicMock(spec_set=attendant_spec)
+
+    # Set required attributes manually.
+    attendant.user_id = 1
+    attendant.specialty_associations = []  # where new associations will be appended
+    attendant.specialties = []  # used by the hybrid property (but we won't rely on it)
+
+    # Mock the query to return a Specialty instance
+    mock_specialty = Specialty(name="Cardiology")
+    db.query.return_value.filter.return_value.first.return_value = mock_specialty
+
+    # Instantiate your CRUD object.
     crud_attendant = CRUDAttendant()
-    attendant = Attendant(user_id=1)
-    mocker.patch.object(db_session, "query", return_value=DummyQuery())
+
+    # Act: Call the function that adds specialties.
+    # Your _add_specialties method is expected to create a new association,
+    # assign a new Specialty instance with name "Cardiology", and append it to specialty_associations.
     crud_attendant._add_specialties(
-        db=db_session,
+        db=db,
         attendant=attendant,
         specialties_list=["Cardiology"],
         created_by=1,
         user_ip="127.0.0.1",
     )
+
+    # Assert: Verify that one new association was added.
     assert len(attendant.specialty_associations) == 1
-    assert attendant.specialty_associations[0].specialty.name == "Cardiology"
+    association = attendant.specialty_associations[0]
+
+    # Check that the association has a 'specialty' attribute with name "Cardiology".
+    assert hasattr(association, "specialty")
+    assert isinstance(association.specialty, Specialty)
+    assert association.specialty.name == "Cardiology"
+
+
+def test_empty_specialties_list(mocker):
+    # Arrange
+    db = mocker.MagicMock()
+
+    # Define a custom spec_set with only the attributes _add_specialties will use.
+    attendant_spec = ["user_id", "specialty_associations", "specialties"]
+    attendant = mocker.MagicMock(spec_set=attendant_spec)
+
+    # Set required attributes manually.
+    attendant.specialty_associations = []
+
+    specialties_list = []
+    created_by = 1
+    user_ip = "127.0.0.1"
+
+    # Create instance of the class that contains _add_specialties
+    crud_attendant = CRUDAttendant()
+
+    # Act
+    crud_attendant._add_specialties(
+        db, attendant, specialties_list, created_by, user_ip
+    )
+
+    # Assert
+    db.query.assert_not_called()
+    db.add.assert_not_called()
+    assert len(attendant.specialty_associations) == 0
 
 
 @pytest.mark.asyncio
@@ -605,8 +757,8 @@ async def test_update_success_full(mocker, async_db_session):
     dummy_update_service = MagicMock()
     dummy_update_service.update_user = AsyncMock(return_value=dummy_user)
     dummy_update_service.get_attendant = AsyncMock(return_value=dummy_attendant)
-    # Core fields update is synchronous
-    dummy_update_service.update_attendant_core_fields = mocker.Mock()
+    # Core fields update is asynchronous
+    dummy_update_service.update_attendant_core_fields = AsyncMock()
 
     # Patch association service methods
     dummy_association_service = MagicMock()
@@ -636,10 +788,10 @@ async def test_update_success_full(mocker, async_db_session):
 
     # Assertions for update service calls
     dummy_update_service.update_user.assert_awaited_once_with(
-        1, update_data, crud_attendant
+        1, update_data, 1, "127.0.0.1"
     )
     dummy_update_service.get_attendant.assert_awaited_once_with(1)
-    dummy_update_service.update_attendant_core_fields.assert_called_once_with(
+    dummy_update_service.update_attendant_core_fields.assert_awaited_once_with(
         dummy_attendant, update_dict["attendant_data"]
     )
     # Assertions for association service calls
@@ -806,3 +958,541 @@ async def test_create_attendant_type_error(mocker):
     assert exc_info.value.status_code == 400
     assert "Bad data" in exc_info.value.detail
     db_mock.rollback.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_update_with_team_names(mocker):
+    # Arrange
+    mock_db = mocker.AsyncMock()
+    mock_user_id = 1
+    mock_updated_by = 2
+    mock_user_ip = "127.0.0.1"
+
+    # Create mock update data
+    attendant_data = {
+        "team_names": ["Team A", "Team B"],
+    }
+    mock_update_data = UserUpdate(
+        email="andre@gmail.com", attendant_data=AttendantUpdate(**attendant_data)
+    )
+
+    # Create dummy user and attendant objects
+    dummy_user = mocker.MagicMock()
+    dummy_user.id = mock_user_id
+    dummy_user.email = "test@example.com"
+
+    dummy_attendant = mocker.MagicMock()
+    dummy_attendant.user_id = mock_user_id
+
+    # Create and patch the AttendantUpdateService class
+    mock_update_service = mocker.patch(
+        "backendeldery.crud.attendant.AttendantUpdateService"
+    )
+    mock_update_service_instance = mock_update_service.return_value
+    mock_update_service_instance.update_user = mocker.AsyncMock(return_value=dummy_user)
+    mock_update_service_instance.get_attendant = mocker.AsyncMock(
+        return_value=dummy_attendant
+    )
+    mock_update_service_instance.update_attendant_core_fields = mocker.AsyncMock()
+
+    # Create and patch the AttendantAssociationService class
+    mock_association_service = mocker.patch(
+        "backendeldery.crud.attendant.AttendantAssociationService"
+    )
+    mock_association_service_instance = mock_association_service.return_value
+    mock_association_service_instance.update_team_associations = mocker.AsyncMock()
+    mock_association_service_instance.update_function_association = mocker.AsyncMock()
+    mock_association_service_instance.update_specialty_associations = mocker.AsyncMock()
+
+    # Create instance with mocked dependencies
+    crud_attendant = CRUDAttendant()
+    crud_attendant.crud_team = mocker.MagicMock()
+    crud_attendant.crud_function = mocker.MagicMock()
+
+    # Act
+    result = await crud_attendant.update(
+        mock_db, mock_user_id, mock_update_data, mock_updated_by, mock_user_ip
+    )
+
+    # Assert
+    mock_update_service_instance.update_user.assert_awaited_once_with(
+        mock_user_id, mock_update_data, mock_updated_by, mock_user_ip
+    )
+    mock_update_service_instance.get_attendant.assert_awaited_once_with(mock_user_id)
+
+    # Use unittest.mock.ANY to match with any argument
+    from unittest.mock import ANY
+
+    mock_update_service_instance.update_attendant_core_fields.assert_awaited_once_with(
+        dummy_attendant, ANY
+    )
+
+    mock_association_service_instance.update_team_associations.assert_awaited_once_with(
+        mock_update_data.attendant_data.team_names, crud_attendant.crud_team
+    )
+    mock_db.commit.assert_awaited_once()
+    mock_db.refresh.assert_awaited_once_with(dummy_attendant)
+    assert result == dummy_attendant
+
+    # Handles unexpected exceptions by converting to HTTPException with 500 status
+
+
+@pytest.mark.asyncio
+async def test_get_handles_unexpected_exception(mocker):
+    # Arrange
+    mock_db = mocker.Mock()
+    mock_query = mock_db.query.return_value
+    mock_options = mock_query.options.return_value
+    mock_filter = mock_options.filter.return_value
+
+    # Simulate an unexpected exception during query execution
+    mock_filter.first.side_effect = Exception("Unexpected error")
+
+    # Create the CRUD instance
+    crud = CRUDAttendant()
+
+    # Act & Assert
+    with pytest.raises(HTTPException) as exc_info:
+        await crud.get(mock_db, 1)
+
+    assert exc_info.value.status_code == 500
+    assert "Error retrieving user with attendant data" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_search_attendant_by_cpf_success(mocker):
+    # Arrange
+    mock_db = mocker.AsyncMock(spec=AsyncSession)
+    mock_execute = mock_db.execute
+    mock_result = mocker.MagicMock()
+    mock_execute.return_value = mock_result
+
+    # Create a mock user to return
+    mock_user = mocker.MagicMock(spec=User)
+    mock_result.scalars.return_value.first.return_value = mock_user
+
+    # Create criteria with CPF
+    criteria = {"cpf": "12345678900"}
+
+    # Act
+    from backendeldery.crud.attendant import CRUDAttendant
+
+    crud_attendant = CRUDAttendant()
+    result = await crud_attendant.search_attendant(mock_db, criteria)
+
+    # Assert
+    mock_execute.assert_called_once()
+    assert result == mock_user
+
+
+@pytest.mark.asyncio
+async def test_search_attendant_by_email(mocker):
+    # Arrange
+    mock_db = mocker.AsyncMock(spec=AsyncSession)
+    mock_execute = mock_db.execute
+    mock_result = mocker.MagicMock()
+    mock_execute.return_value = mock_result
+    mock_scalars = mocker.MagicMock()
+    mock_result.scalars.return_value = mock_scalars
+
+    # Create a mock user to return
+    mock_user = mocker.MagicMock(spec=User)
+    mock_scalars.first.return_value = mock_user
+
+    # Create the criteria dictionary
+    criteria = {"email": "test@example.com"}
+
+    # Act
+    from backendeldery.crud.attendant import CRUDAttendant
+
+    crud_attendant = CRUDAttendant()
+    result = await crud_attendant.search_attendant(mock_db, criteria)
+
+    # Assert
+    assert result == mock_user
+    mock_db.execute.assert_called_once()
+    mock_result.scalars.assert_called_once()
+    mock_scalars.first.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_search_attendant_error_propagation(mocker):
+    # Arrange
+    mock_db = mocker.AsyncMock(spec=AsyncSession)
+    mock_db.execute.side_effect = Exception("Database error")
+    criteria = {"cpf": "12345678900"}
+
+    # Act & Assert
+    crud_attendant = CRUDAttendant()
+    with pytest.raises(HTTPException) as exc_info:
+        await crud_attendant.search_attendant(mock_db, criteria)
+
+    assert exc_info.value.status_code == 500
+    assert "Error to search subscriber" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_search_attendant_invalid_field(mocker):
+    # Arrange
+    mock_db = mocker.AsyncMock(spec=AsyncSession)
+    criteria = {"invalid_field": "some_value"}
+
+    # Act
+    from backendeldery.crud.attendant import CRUDAttendant
+
+    crud_attendant = CRUDAttendant()
+    result = await crud_attendant.search_attendant(mock_db, criteria)
+
+    # Assert
+    assert result is None
+    mock_db.execute.assert_not_called()
+
+    # Successfully updates team associations when team_names is provided
+
+
+@pytest.mark.asyncio
+async def test_update_with_only_team_names(mocker):
+    # Arrange
+    mock_db = mocker.AsyncMock()
+    user_id = 1
+    updated_by = 2
+    user_ip = "127.0.0.1"
+    team_names = ["Team A", "Team B"]
+
+    # Create a real AttendantUpdate and UserUpdate object.
+    attendant_update = AttendantUpdate(team_names=team_names)
+    update_data = UserUpdate(attendant_data=attendant_update)
+
+    # Override the model_dump method on update_data (bypassing Pydantic restrictions)
+    object.__setattr__(
+        update_data,
+        "model_dump",
+        lambda *, exclude_unset=True: {"attendant_data": {"team_names": team_names}},
+    )
+
+    # Create mock objects to be returned by the service methods.
+    mock_user = MagicMock()
+    mock_user.id = user_id
+
+    mock_attendant = MagicMock()
+    mock_attendant.user_id = user_id
+
+    # Setup AttendantUpdateService mock.
+    mock_update_service = MagicMock()
+    mock_update_service.update_user = AsyncMock(return_value=mock_user)
+    mock_update_service.get_attendant = AsyncMock(return_value=mock_attendant)
+    mock_update_service.update_attendant_core_fields = AsyncMock()
+
+    # Patch the constructor of AttendantUpdateService.
+    mocker.patch(
+        "backendeldery.crud.attendant.AttendantUpdateService",
+        return_value=mock_update_service,
+    )
+
+    # Setup AttendantAssociationService mock.
+    mock_assoc_service = MagicMock()
+    mock_assoc_service.update_team_associations = AsyncMock()
+
+    # Patch the constructor of AttendantAssociationService.
+    mocker.patch(
+        "backendeldery.crud.attendant.AttendantAssociationService",
+        return_value=mock_assoc_service,
+    )
+
+    # Create the CRUD instance and set the required attribute.
+    crud_attendant = CRUDAttendant()
+    crud_attendant.crud_team = MagicMock()
+
+    # Act - call the update method.
+    result = await crud_attendant.update(
+        mock_db, user_id, update_data, updated_by, user_ip
+    )
+
+    # Assert - verify that update_team_associations was called with the expected parameters.
+    mock_assoc_service.update_team_associations.assert_awaited_once_with(
+        team_names, crud_attendant.crud_team
+    )
+
+    # Also check that other service methods and db operations were called as expected.
+    mock_update_service.update_user.assert_awaited_once()
+    mock_update_service.get_attendant.assert_awaited_once()
+    mock_update_service.update_attendant_core_fields.assert_awaited_once()
+    mock_db.commit.assert_awaited_once()
+    mock_db.refresh.assert_awaited_once_with(mock_attendant)
+    assert result == mock_attendant
+
+
+@pytest.mark.asyncio
+async def test_update_attendant_not_found(mocker):
+    # Arrange
+    db = mocker.Mock(spec=AsyncMock)  # or AsyncSession, if available
+    user_id = 1
+    update_data = UserUpdate()
+    updated_by = 1
+    user_ip = "127.0.0.1"
+
+    # Ensure update_data.model_dump returns a dictionary with empty attendant_data.
+    object.__setattr__(
+        update_data, "model_dump", lambda *, exclude_unset=True: {"attendant_data": {}}
+    )
+
+    # Patch AttendantUpdateService in the namespace where it's used by CRUDAttendant.
+    patch_target = "backendeldery.crud.attendant.AttendantUpdateService"
+    mock_update_service = mocker.patch(patch_target)
+    mock_update_service_instance = mock_update_service.return_value
+
+    # To avoid user not found error, make update_user return a fake user.
+    fake_user = MagicMock()
+    fake_user.id = user_id
+    mock_update_service_instance.update_user = AsyncMock(return_value=fake_user)
+    # Patch get_attendant to simulate "attendant not found" by returning None.
+    mock_update_service_instance.get_attendant = AsyncMock(return_value=None)
+
+    # Create an instance of CRUDAttendant (where update is defined)
+    crud_attendant = CRUDAttendant()
+    crud_attendant.crud_team = mocker.MagicMock()
+    crud_attendant.crud_function = mocker.MagicMock()
+
+    # Act & Assert: Since get_attendant returns None, update should raise an HTTPException.
+    with pytest.raises(HTTPException) as exc_info:
+        await crud_attendant.update(db, user_id, update_data, updated_by, user_ip)
+
+    # Verify that the exception details match "Attendant not found"
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "Attendant not found"
+
+
+@pytest.mark.asyncio
+async def test_update_handles_user_not_found(mocker):
+    # Arrange
+    mock_db = mocker.AsyncMock()
+    mock_user_id = 1
+    mock_updated_by = 2
+    mock_user_ip = "127.0.0.1"
+
+    # Create a real UserUpdate instance with a field (e.g., email)
+    mock_update_data = UserUpdate(email="test@example.com")
+    # Override model_dump so that it returns a dict with an empty attendant_data.
+    object.__setattr__(
+        mock_update_data,
+        "model_dump",
+        lambda *, exclude_unset=True: {"attendant_data": {}},
+    )
+
+    # Patch the AttendantUpdateService in the namespace where it's used.
+    # First, override __init__ so it does nothing.
+    from backendeldery.crud.attendant import AttendantUpdateService
+
+    mocker.patch.object(
+        AttendantUpdateService, "__init__", lambda self, db, updated_by, user_ip: None
+    )
+
+    # Then patch the class itself so that we can control its methods.
+    patch_target = "backendeldery.crud.attendant.AttendantUpdateService"
+    mock_update_service = mocker.patch(patch_target)
+    mock_update_service_instance = mock_update_service.return_value
+    # Make sure update_user is an AsyncMock returning None (simulating user not found).
+    mock_update_service_instance.update_user = AsyncMock(return_value=None)
+
+    # Create the CRUDAttendant instance and assign required attributes.
+    crud_attendant = CRUDAttendant()
+    crud_attendant.crud_team = mocker.MagicMock()
+    crud_attendant.crud_function = mocker.MagicMock()
+
+    # Act & Assert: update should raise an HTTPException with status 404 ("User not found").
+    with pytest.raises(HTTPException) as exc_info:
+        await crud_attendant.update(
+            mock_db, mock_user_id, mock_update_data, mock_updated_by, mock_user_ip
+        )
+
+    # Verify that the exception details match the expected "User not found" error.
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "User not found"
+
+
+def test_user_without_attendant_returns_basic_info(mocker):
+    # Arrange
+    from backendeldery.schemas import AttendandInfo
+    from backendeldery.models import User
+
+    # Create a mock user without attendant
+    mock_user = mocker.Mock(spec=User)
+    mock_user.id = 1
+    mock_user.name = "Jane Doe"
+    mock_user.email = "jane@example.com"
+    mock_user.phone = "987654321"
+    mock_user.role = "user"
+    mock_user.active = True
+    mock_user.attendant = None
+
+    # Patch the model_validate method on AttendandInfo so that it returns a fake schema instance.
+    mock_user_info = mocker.Mock(spec=AttendandInfo)
+    mocker.patch.object(AttendandInfo, "model_validate", return_value=mock_user_info)
+
+    # Patch logger if necessary.
+    mocker.patch("backendeldery.crud.attendant.logger")
+
+    # Create an instance of CRUDAttendant (child of CRUDUser) that contains build_response.
+    from backendeldery.crud.attendant import CRUDAttendant
+
+    crud_attendant = CRUDAttendant()
+
+    # Act - call the build_response method on the CRUDAttendant instance.
+    result = crud_attendant._build_response(mock_user)
+
+    # Assert - verify that the response is built as expected.
+    assert result == mock_user_info
+
+
+@pytest.mark.asyncio
+async def test_set_function_association_with_empty_function_name(mocker):
+    # Arrange
+    db = mocker.MagicMock()
+    # Instead of using spec=Attendant (which triggers hybrid property evaluation),
+    # simply create a plain MagicMock.
+    attendant = mocker.MagicMock()
+    updated_by = 1
+    user_ip = "127.0.0.1"
+    # Set an empty function name.
+    function_name = ""
+
+    # Setup a mock for crud_function with async methods.
+    mock_crud_function = mocker.MagicMock()
+    mock_crud_function.create = AsyncMock()
+    mock_crud_function.update = AsyncMock()
+
+    # Instantiate the association service and assign the mock crud_function.
+    service = AttendantAssociationService(db, updated_by, updated_by, user_ip)
+    service.crud_function = mock_crud_function
+
+    # Act: Call update_function_association with an empty function name.
+    # (Assuming your service method returns None when function_name is empty.)
+    result = await service.update_function_association(
+        function_name, mock_crud_function
+    )
+
+    # Assert: Verify that neither create nor update was awaited.
+    mock_crud_function.create.assert_not_awaited()
+    mock_crud_function.update.assert_not_awaited()
+    # And assert that result is None (or whatever your business logic dictates).
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_update_function_association_creates_function_when_not_exists(mocker):
+    # Arrange
+    db = mocker.AsyncMock()  # AsyncMock for asynchronous DB calls.
+    function_name = "NewFunction"
+    created_by = 1
+    user_ip = "127.0.0.1"
+
+    # Setup fake result for the execute call to simulate no existing function.
+    fake_result = mocker.AsyncMock()
+    fake_scalars = mocker.Mock()
+    fake_scalars.first.return_value = None  # Simulate no existing function.
+    fake_result.scalars = mocker.Mock(return_value=fake_scalars)
+    db.execute.return_value = fake_result
+
+    # Setup async mock for crud_function.create.
+    mock_crud_function = mocker.MagicMock()
+    mock_func_obj = mocker.MagicMock()
+    mock_crud_function.create = AsyncMock(return_value=mock_func_obj)
+
+    # Instantiate the service.
+    service = AttendantAssociationService(db, created_by, created_by, user_ip)
+    service.crud_function = mock_crud_function
+
+    # Act: Call the update_function_association method.
+    result = await service.update_function_association(
+        function_name, mock_crud_function
+    )
+
+    # Assert: Ensure that create was awaited with the expected positional arguments.
+    mock_crud_function.create.assert_awaited_once_with(
+        db,
+        function_name,
+        "Auto-created function",
+        created_by,
+        user_ip,
+    )
+
+    # Optionally, assert that the result is as expected.
+    assert result == mock_func_obj
+
+
+@pytest.mark.asyncio
+async def test_create_attendant_type_error(mocker):
+    # Arrange
+    db = mocker.MagicMock()
+    created_by = 1
+    user_ip = "127.0.0.1"
+
+    # Valid attendant data as expected by your input schema.
+    valid_attendant_data = {
+        "cpf": "12345678901",
+        "address": "123 Main St",
+        "neighborhood": "Downtown",
+        "city": "Test City",
+        "state": "TS",
+        "code_address": "12345",
+        "birthday": date(2000, 1, 1),
+        "registro_conselho": "Registro123",
+        "nivel_experiencia": "junior",
+        "formacao": "Bachelor's Degree",
+        "specialty_names": [],
+        "team_names": [],
+        "function_names": "Test Function",
+    }
+
+    # Create a UserCreate input with attendant role.
+    obj_in = UserCreate(
+        name="Test Attendant",
+        email="test@example.com",
+        phone="+123456789",
+        role="attendant",
+        password="password123",
+        attendant_data=valid_attendant_data,
+    )
+
+    # Create a fake user (using SimpleNamespace) with proper attributes.
+    fake_user = SimpleNamespace(
+        id=1,
+        name="Test Attendant",
+        email="test@example.com",
+        phone="+123456789",
+        role="attendant",
+        attendant=None,  # initially no attendant
+    )
+
+    # Patch the parent's create method (from CRUDUser) to return our fake user.
+    mocker.patch.object(CRUDUser, "create", new=AsyncMock(return_value=fake_user))
+
+    # Patch _create_attendant so that it raises a TypeError.
+    mocker.patch.object(
+        CRUDAttendant,
+        "_create_attendant",
+        new=AsyncMock(side_effect=TypeError("Invalid attendant data")),
+    )
+
+    # Patch _commit_and_refresh and _finalize_user so they do nothing.
+    mocker.patch.object(CRUDAttendant, "_commit_and_refresh", return_value=None)
+    mocker.patch.object(CRUDAttendant, "_finalize_user", return_value=None)
+
+    # Ensure that db.rollback is a MagicMock so we can assert it is called.
+    db.rollback = MagicMock()
+
+    # Create an instance of CRUDAttendant and set required attributes.
+    crud_attendant = CRUDAttendant()
+    crud_attendant.crud_team = MagicMock()
+    crud_attendant.crud_function = MagicMock()
+
+    # Act & Assert: Calling create() should raise an HTTPException with status 400.
+    with pytest.raises(HTTPException) as exc_info:
+        await crud_attendant.create(db, obj_in, created_by, user_ip)
+
+    assert exc_info.value.status_code == 400
+    assert (
+        "Error while creating Attendant: Invalid attendant data"
+        in exc_info.value.detail
+    )
+    db.rollback.assert_called_once()

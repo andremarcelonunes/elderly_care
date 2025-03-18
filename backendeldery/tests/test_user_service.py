@@ -171,7 +171,7 @@ async def test_get_subscriber_by_id_success(db_session, mocker):
     # Assert the result
     assert result.id == 1
     assert result.name == "John Doe"
-    assert result.client_data.cpf == "12345678900"
+    assert result.client_data["cpf"] == "12345678900"
 
 
 @pytest.mark.asyncio
@@ -226,14 +226,14 @@ async def test_update_subscriber_success(db_session, user_update_data):
 
     with patch.object(UserValidator, "validate_user", return_value=None):
         with patch.object(
-                crud_specialized_user,
-                "update_user_and_client",
-                return_value={"message": "User and Client are updated!"},
+            crud_specialized_user,
+            "update_user_and_client",
+            return_value={"message": "User and Client are updated!"},
         ):
             with patch.object(
-                    crud_specialized_user,
-                    "get_user_with_client",
-                    return_value=mock_user_info,
+                crud_specialized_user,
+                "get_user_with_client",
+                return_value=mock_user_info,
             ):
                 result = await UserService.update_subscriber(
                     db=db_session,
@@ -248,9 +248,9 @@ async def test_update_subscriber_success(db_session, user_update_data):
 @pytest.mark.asyncio
 async def test_update_subscriber_validation_error(db_session, user_update_data):
     with patch.object(
-            UserValidator,
-            "validate_user",
-            side_effect=HTTPException(status_code=422, detail="Validation error"),
+        UserValidator,
+        "validate_user",
+        side_effect=HTTPException(status_code=422, detail="Validation error"),
     ):
         with pytest.raises(HTTPException) as excinfo:
             await UserService.update_subscriber(
@@ -268,9 +268,9 @@ async def test_update_subscriber_validation_error(db_session, user_update_data):
 async def test_update_subscriber_user_not_found(db_session, user_update_data):
     with patch.object(UserValidator, "validate_user", return_value=None):
         with patch.object(
-                crud_specialized_user,
-                "update_user_and_client",
-                return_value={"error": "User not found"},
+            crud_specialized_user,
+            "update_user_and_client",
+            return_value={"error": "User not found"},
         ):
             with pytest.raises(HTTPException) as excinfo:
                 await UserService.update_subscriber(
@@ -288,9 +288,9 @@ async def test_update_subscriber_user_not_found(db_session, user_update_data):
 async def test_update_subscriber_unexpected_exception(db_session, user_update_data):
     with patch.object(UserValidator, "validate_user", return_value=None):
         with patch.object(
-                crud_specialized_user,
-                "update_user_and_client",
-                side_effect=Exception("Unexpected error"),
+            crud_specialized_user,
+            "update_user_and_client",
+            side_effect=Exception("Unexpected error"),
         ):
             with pytest.raises(HTTPException) as excinfo:
                 await UserService.update_subscriber(
@@ -307,7 +307,7 @@ async def test_update_subscriber_unexpected_exception(db_session, user_update_da
 @pytest.mark.asyncio
 async def test_update_subscriber_value_error(db_session, user_update_data):
     with patch.object(
-            UserValidator, "validate_user", side_effect=ValueError("Invalid value")
+        UserValidator, "validate_user", side_effect=ValueError("Invalid value")
     ):
         with pytest.raises(HTTPException) as excinfo:
             await UserService.update_subscriber(
@@ -323,16 +323,16 @@ async def test_update_subscriber_value_error(db_session, user_update_data):
 
 @pytest.mark.asyncio
 async def test_update_subscriber_user_not_found_after_update(
-        db_session, user_update_data
+    db_session, user_update_data
 ):
     with patch.object(UserValidator, "validate_user", return_value=None):
         with patch.object(
-                crud_specialized_user,
-                "update_user_and_client",
-                return_value={"message": "User and Client " "are updated!"},
+            crud_specialized_user,
+            "update_user_and_client",
+            return_value={"message": "User and Client " "are updated!"},
         ):
             with patch.object(
-                    crud_specialized_user, "get_user_with_client", return_value=None
+                crud_specialized_user, "get_user_with_client", return_value=None
             ):
                 with pytest.raises(HTTPException) as excinfo:
                     await UserService.update_subscriber(
@@ -617,37 +617,43 @@ async def test_get_clients_of_contact_contact_is_also_client(db_session, mocker)
 
 @pytest.mark.asyncio
 async def test_delete_contact_relation_exists_and_orphan(db_session, mocker):
-    mocker.patch.object(crud_contact, 'delete_contact_association', return_value=1)
-    mocker.patch.object(crud_contact, 'delete_contact_if_orphan', return_value=Mock())
+    mocker.patch.object(crud_contact, "delete_contact_association", return_value=1)
+    mocker.patch.object(crud_contact, "delete_contact_if_orphan", return_value=Mock())
 
-    result = await UserService.delete_contact_relation(db_session,
-                                                 client_id=1, contact_id=2, user_ip="127.0.0.1", x_user_id=1)
+    result = await UserService.delete_contact_relation(
+        db_session, client_id=1, contact_id=2, user_ip="127.0.0.1", x_user_id=1
+    )
     assert result == {"message": "Contact association deleted successfully"}
 
 
 @pytest.mark.asyncio
 async def test_delete_contact_relation_exists_and_not_orphan(db_session, mocker):
-    mocker.patch.object(crud_contact, 'delete_contact_association', return_value=1)
-    mocker.patch.object(crud_contact, 'delete_contact_if_orphan', return_value=None)
+    mocker.patch.object(crud_contact, "delete_contact_association", return_value=1)
+    mocker.patch.object(crud_contact, "delete_contact_if_orphan", return_value=None)
 
-    result = await UserService.delete_contact_relation(db_session,
-                                                 client_id=1, contact_id=2, user_ip="127.0.0.1", x_user_id=1)
+    result = await UserService.delete_contact_relation(
+        db_session, client_id=1, contact_id=2, user_ip="127.0.0.1", x_user_id=1
+    )
     assert result == {"message": "Contact association deleted successfully"}
 
 
 @pytest.mark.asyncio
 async def test_delete_contact_relation_not_exists(db_session, mocker):
-    mocker.patch.object(crud_contact, 'delete_contact_association', return_value=0)
+    mocker.patch.object(crud_contact, "delete_contact_association", return_value=0)
 
     with pytest.raises(HTTPException) as excinfo:
-        await UserService.delete_contact_relation(db_session, client_id=1, contact_id=2, user_ip="127.0.0.1", x_user_id=1)
+        await UserService.delete_contact_relation(
+            db_session, client_id=1, contact_id=2, user_ip="127.0.0.1", x_user_id=1
+        )
     assert excinfo.value.status_code == 404
     assert excinfo.value.detail == "Association not found"
 
 
 @pytest.mark.asyncio
 async def test_delete_contact_relation_success(db_session, mocker):
-    mocker.patch.object(UserValidator, "validate_deletion_contact_association", return_value=None)
+    mocker.patch.object(
+        UserValidator, "validate_deletion_contact_association", return_value=None
+    )
     mocker.patch.object(crud_contact, "delete_contact_relation", return_value=None)
 
     result = await UserService.delete_contact_relation(
@@ -658,8 +664,14 @@ async def test_delete_contact_relation_success(db_session, mocker):
 
 @pytest.mark.asyncio
 async def test_delete_contact_relation_not_found(db_session, mocker):
-    mocker.patch.object(UserValidator, "validate_deletion_contact_association", return_value=None)
-    mocker.patch.object(crud_contact, "delete_contact_relation", side_effect=HTTPException(status_code=404, detail="Association not found"))
+    mocker.patch.object(
+        UserValidator, "validate_deletion_contact_association", return_value=None
+    )
+    mocker.patch.object(
+        crud_contact,
+        "delete_contact_relation",
+        side_effect=HTTPException(status_code=404, detail="Association not found"),
+    )
 
     with pytest.raises(HTTPException) as excinfo:
         await UserService.delete_contact_relation(
@@ -671,7 +683,13 @@ async def test_delete_contact_relation_not_found(db_session, mocker):
 
 @pytest.mark.asyncio
 async def test_delete_contact_relation_unauthorized(db_session, mocker):
-    mocker.patch.object(UserValidator, "validate_deletion_contact_association", side_effect=HTTPException(status_code=403, detail="You are not authorized to delete this association"))
+    mocker.patch.object(
+        UserValidator,
+        "validate_deletion_contact_association",
+        side_effect=HTTPException(
+            status_code=403, detail="You are not authorized to delete this association"
+        ),
+    )
 
     with pytest.raises(HTTPException) as excinfo:
         await UserService.delete_contact_relation(
@@ -683,7 +701,11 @@ async def test_delete_contact_relation_unauthorized(db_session, mocker):
 
 @pytest.mark.asyncio
 async def test_delete_contact_relation_client_not_found(db_session, mocker):
-    mocker.patch.object(UserValidator, "validate_deletion_contact_association", side_effect=HTTPException(status_code=404, detail="Client not found"))
+    mocker.patch.object(
+        UserValidator,
+        "validate_deletion_contact_association",
+        side_effect=HTTPException(status_code=404, detail="Client not found"),
+    )
 
     with pytest.raises(HTTPException) as excinfo:
         await UserService.delete_contact_relation(
@@ -695,8 +717,14 @@ async def test_delete_contact_relation_client_not_found(db_session, mocker):
 
 @pytest.mark.asyncio
 async def test_create_contact_association_success(db_session, mocker):
-    mocker.patch.object(UserValidator, "validate_association_contact", return_value=None)
-    mocker.patch.object(crud_contact, "create_contact_association", return_value={"message": "Association created"})
+    mocker.patch.object(
+        UserValidator, "validate_association_contact", return_value=None
+    )
+    mocker.patch.object(
+        crud_contact,
+        "create_contact_association",
+        return_value={"message": "Association created"},
+    )
 
     result = await UserService.create_contact_association(
         db_session, client_id=1, user_contact_id=2, created_by=1, user_ip="127.0.0.1"

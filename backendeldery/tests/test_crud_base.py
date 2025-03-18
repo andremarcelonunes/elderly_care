@@ -1,11 +1,13 @@
 # test_crud_base.py
+from unittest.mock import patch
+
 import pytest
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from backendeldery.models import User
+
 from backendeldery.crud.base import CRUDBase
+from backendeldery.models import User
 from backendeldery.schemas import UserCreate
-from unittest.mock import patch
 
 
 @pytest.fixture
@@ -112,7 +114,9 @@ async def test_create_user_with_client_data(db_session, user_data):
 
     # Exclude 'client_data' from the dictionary, since it's a read-only property on User
     sqlalchemy_user_data = {
-        k: v for k, v in user_data_dict.items() if hasattr(User, k) and k != "client_data"
+        k: v
+        for k, v in user_data_dict.items()
+        if hasattr(User, k) and k != "client_data"
     }
     mock_user_data = MockUserCreate(**sqlalchemy_user_data)
     db_session.query.return_value.filter.return_value.first.return_value = User(
@@ -134,7 +138,7 @@ async def test_create_user_with_client_data(db_session, user_data):
             "user_ip": None,
         },
     ):
-        result = await crud_base.create(db_session, mock_user_data)
+        result = await crud_base.create(db_session, mock_user_data, 1, "127.1.1.1")
         assert result["email"] == user_data.email
 
 
@@ -147,8 +151,9 @@ async def test_update_user(db_session, user_data):
     user_data_dict.pop("password")  # Exclude password
     user_data_dict.pop("client_data")  # Exclude client_data as it's not valid for User
     mock_user_update = MockUserUpdate(**user_data_dict)
-    result = await crud_base.update(db_session, 1, mock_user_update)
+    result = await crud_base.update(db_session, 1, mock_user_update, 1, "127.1.1.1")
     assert result["email"] == user_data.email
+
 
 @pytest.mark.asyncio
 async def test_delete_user(db_session):

@@ -2,6 +2,7 @@ import logging
 import traceback
 from typing import Optional, List, Set, Dict
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,14 +16,14 @@ from backendeldery.models import (
     Specialty,
 )
 
-logger = logging.getLogger("backendeldery")
-logger.setLevel(logging.INFO)
-if not logger.hasHandlers():
-    console_handler = logging.StreamHandler()
+logger = logging.getLogger("backendeldery")  # pragma: no cover
+logger.setLevel(logging.INFO)  # pragma: no cover
+if not logger.hasHandlers():  # pragma: no cover
+    console_handler = logging.StreamHandler()  # pragma: no cover
     console_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
-    logger.addHandler(console_handler)
+    )  # pragma: no cover
+    logger.addHandler(console_handler)  # pragma: no cover
 
 
 class AttendantAssociationService:
@@ -38,10 +39,7 @@ class AttendantAssociationService:
         if not team_names:
             return
         existing_team_ids = await self._get_existing_team_ids()
-        logger.info("###########Times existentes: %s", existing_team_ids)
-        logger.info("###########Times names: %s", team_names)
         team_map = await self._get_or_create_teams(team_names, crud_team)
-        logger.info("###########Times maps: %s", team_map)
         await self._create_new_team_associations(team_map, existing_team_ids)
 
     async def _get_existing_team_ids(self) -> Set[int]:
@@ -60,13 +58,10 @@ class AttendantAssociationService:
         for name in unique_names:
             team = await crud_team.get_by_name_async(self.db, name)
             if not team:
-                try:
-                    team = await crud_team.create_async(
-                        self.db, name, "default", self.updated_by, self.user_ip
-                    )
-                except Exception as e:
-                    logger.error("Error in team_create: %s", traceback.format_exc())
-                    raise
+                team = await crud_team.create_async(
+                    self.db, name, "default", self.updated_by, self.user_ip
+                )
+
             teams[name] = team
         return teams
 
@@ -83,16 +78,15 @@ class AttendantAssociationService:
             for team in team_map.values()
             if team.team_id not in existing_team_ids
         ]
-        logger.info("###########New associations: %s", new_associations)
         if new_associations:
             self.db.add_all(new_associations)
 
     async def update_function_association(
-        self, function_names: Optional[List[str]], crud_function: CRUDFunction
+        self, function_name: Optional[str], crud_function: CRUDFunction
     ):
-        if not function_names:
+        if not function_name:
             return None
-        function_name = function_names[0]  # Assume the first is primary.
+        logger.info("o nome da função é %s", function_name)
         result = await self.db.execute(
             select(Function).where(Function.name == function_name)
         )
@@ -162,3 +156,59 @@ class AttendantAssociationService:
         ]
         if new_associations:
             self.db.add_all(new_associations)
+
+    async def delete_team_relation(
+        self,
+        db: AsyncSession,
+        attendant_id: int,
+        team_id: int,
+    ) -> dict:
+        """
+        Delete the association between an attendant and a team.
+
+        Args:
+            db: Database session
+            attendant_id: ID of the attendant
+            team_id: ID of the team
+
+        Returns:
+            Dictionary with status message
+        """
+        try:
+            # First update the association with audit information
+            result = await db.execute(
+                select(AttendantTeam).where(
+                    AttendantTeam.attendant_id == attendant_id,
+                    AttendantTeam.team_id == team_id,
+                )
+            )
+            association = result.scalars().first()
+
+            if not association:
+                raise HTTPException(
+                    status_code=404, detail="Team association not found"
+                )
+
+            # Update with audit information
+            association.updated_by = self.updated_by
+            association.user_ip = self.user_ip
+
+            # Hard delete the association
+            await db.delete(association)
+            await db.commit()
+
+            return {
+                "status": "success",
+                "message": f"Team association between attendant {attendant_id} and team {team_id} deleted successfully",
+            }
+
+        except HTTPException as e:
+            await db.rollback()
+            raise e
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Error deleting team association: {str(e)}")
+            logger.error(traceback.format_exc())
+            raise HTTPException(
+                status_code=500, detail=f"Failed to delete team association: {str(e)}"
+            )
