@@ -1,14 +1,12 @@
-from typing import List
-
-from fastapi import APIRouter, Depends, Body, HTTPException, Request, Header
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from backendeldery.schemas import (
     UserCreate,
     UserResponse,
-    UserUpdate,
     UserSearch,
+    UserUpdate,
 )
 from backendeldery.services.attendantAssociationService import (
     AttendantAssociationService,
@@ -170,7 +168,7 @@ async def delete_team_association(
 
 @router.get(
     "/attendants/{attendant_id}/clients",
-    response_model=List[UserResponse],
+    response_model=list[UserResponse],
     response_model_exclude_none=True,
 )
 async def get_clients_for_attendant(
