@@ -46,6 +46,8 @@ jobs:
       - name: Run Tests
         env:
           DATABASE_URL: "sqlite:///./test.db"
+          DATABASE_URL_SYNC: "sqlite:///./test.db"
+          DATABASE_URL_ASYNC: "sqlite:///./test.db"
           MONGO_URI: "mock_mongo_uri"
           MONGO_DB: "mock_mongo_db"
         run: |
