@@ -16,7 +16,7 @@ motor = "^3.6.0"
 pydantic-settings = "^2.7.0"
 passlib = "^1.7.4"
 bcrypt = "==3.2.0"
-pydantic = { extras = ["email"], version = "^2.10.4" }
+pydantic = { extras = ["all"], version = "^2.11.0" }
 crud = "^0.1"
 pytest = "^8.3.5"
 pytest-mock = "^3.14.0"
@@ -29,6 +29,7 @@ alembic = "^1.14.1"
 asyncpg = "^0.30.0"
 greenlet = "^3.1.1"
 ruff = "^0.11.1"
+email-validator = "^2.2.0"
 
 
 [tool.poetry.group.dev.dependencies]
