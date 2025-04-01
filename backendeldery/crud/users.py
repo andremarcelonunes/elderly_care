@@ -2,26 +2,26 @@ import logging
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, joinedload
 
 from backendeldery.models import (
-    User,
     Client,
+    User,
     client_association,
     client_contact_association,
 )
 from backendeldery.schemas import (
-    UserCreate,
     SubscriberCreate,
-    UserInfo,
     SubscriberInfo,
+    UserCreate,
+    UserInfo,
     UserUpdate,
 )
 from backendeldery.utils import hash_password, obj_to_dict
+
 from .base import CRUDBase
 
 logger = logging.getLogger("backendeldery")  # pragma: no cover
@@ -88,7 +88,6 @@ class CRUDUser(CRUDBase[User, UserCreate]):
         updated_by: int,
         user_ip: str,
     ) -> User:
-        from sqlalchemy import select
 
         # Ensure update_data is a Pydantic model.
         if not hasattr(update_data, "model_dump"):

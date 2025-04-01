@@ -103,12 +103,14 @@ class UserValidator:
                 if existing_user.phone == user_data["phone"]:
                     raise HTTPException(
                         status_code=422,
-                        detail="This phone user has  already belonged to a client with another CPF",
+                        detail="This phone user has  already belonged to a client with "
+                        "another CPF",
                     )
                 else:
                     raise HTTPException(
                         status_code=422,
-                        detail="This email user has  already belonged to a client with another CPF",
+                        detail="This email user has  already belonged to a client with"
+                        " another CPF",
                     )
 
         existing_client = (

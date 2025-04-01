@@ -5,9 +5,9 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backendeldery import User, CRUDUser
+from backendeldery import CRUDUser, User
 from backendeldery.models import Attendant
-from backendeldery.schemas import UserUpdate, AttendantUpdate
+from backendeldery.schemas import AttendantUpdate, UserUpdate
 
 logger = logging.getLogger("backendeldery")  # pragma: no cover
 logger.setLevel(logging.INFO)  # pragma: no cover
@@ -47,7 +47,8 @@ class AttendantUpdateService:
     async def update_attendant_core_fields(
         self, attendant: Attendant, update_data: Union[AttendantUpdate, dict]
     ) -> Attendant:
-        # Determine update_fields: if update_data is a dict, use it directly; otherwise, use model_dump
+        # Determine update_fields: if update_data is a dict, use it directly;
+        # otherwise, use model_dump
         if isinstance(update_data, dict):
             update_fields = update_data
         else:
@@ -71,5 +72,4 @@ class AttendantUpdateService:
 
         attendant.updated_by = self.updated_by
         attendant.user_ip = self.user_ip
-        
         return attendant

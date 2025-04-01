@@ -1,6 +1,5 @@
 import logging
 import traceback
-from typing import Dict, List, Optional, Set
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -42,7 +41,7 @@ class AttendantAssociationService:
         team_map = await self._get_or_create_teams(team_names, crud_team)
         await self._create_new_team_associations(team_map, existing_team_ids)
 
-    async def _get_existing_team_ids(self) -> Set[int]:
+    async def _get_existing_team_ids(self) -> set[int]:
         result = await self.db.execute(
             select(AttendantTeam.team_id).where(
                 AttendantTeam.attendant_id == self.user_id
@@ -51,8 +50,8 @@ class AttendantAssociationService:
         return set(result.scalars().all())
 
     async def _get_or_create_teams(
-        self, team_names: List[str], crud_team: CRUDTeam
-    ) -> Dict[str, Team]:
+        self, team_names: list[str], crud_team: CRUDTeam
+    ) -> dict[str, Team]:
         unique_names = set(team_names)
         teams = {}
         for name in unique_names:
@@ -66,7 +65,7 @@ class AttendantAssociationService:
         return teams
 
     async def _create_new_team_associations(
-        self, team_map: Dict[str, Team], existing_team_ids: Set[int]
+        self, team_map: dict[str, Team], existing_team_ids: set[int]
     ) -> None:
         new_associations = [
             AttendantTeam(
@@ -82,7 +81,7 @@ class AttendantAssociationService:
             self.db.add_all(new_associations)
 
     async def update_function_association(
-        self, function_name: Optional[str], crud_function: CRUDFunction
+        self, function_name: str | None, crud_function: CRUDFunction
     ):
         if not function_name:
             return None
@@ -102,7 +101,7 @@ class AttendantAssociationService:
         return function
 
     async def update_specialty_associations(
-        self, specialties: Optional[List[str]]
+        self, specialties: list[str] | None
     ) -> None:
         if not specialties:
             return
@@ -112,7 +111,7 @@ class AttendantAssociationService:
             specialties, specialty_map, existing_ids
         )
 
-    async def _get_existing_specialty_ids(self) -> Set[int]:
+    async def _get_existing_specialty_ids(self) -> set[int]:
         result = await self.db.execute(
             select(AttendantSpecialty.specialty_id).where(
                 AttendantSpecialty.attendant_id == self.user_id
@@ -121,8 +120,8 @@ class AttendantAssociationService:
         return set(result.scalars().all())
 
     async def _get_or_create_specialties(
-        self, names: List[str]
-    ) -> Dict[str, Specialty]:
+        self, names: list[str]
+    ) -> dict[str, Specialty]:
         unique_names = set(names)
         result = await self.db.execute(
             select(Specialty).where(Specialty.name.in_(unique_names))
@@ -140,9 +139,9 @@ class AttendantAssociationService:
 
     async def _create_specialty_associations(
         self,
-        specialties: List[str],
-        specialty_map: Dict[str, Specialty],
-        existing_ids: Set[int],
+        specialties: list[str],
+        specialty_map: dict[str, Specialty],
+        existing_ids: set[int],
     ) -> None:
         new_associations = [
             AttendantSpecialty(
@@ -199,7 +198,8 @@ class AttendantAssociationService:
 
             return {
                 "status": "success",
-                "message": f"Team association between attendant {attendant_id} and team {team_id} deleted successfully",
+                "message": f"Team association between attendant {attendant_id} and team"
+                f" {team_id} deleted successfully",
             }
 
         except HTTPException as e:

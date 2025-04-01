@@ -42,7 +42,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                     "detail": [
                         {
                             "field": "body",
-                            "message": f"Erro de formatação JSON na linha {error_line}: {error_line_content}",
+                            "message": f"Erro de formatação JSON na linha {error_line}:"
+                            f" {error_line_content}",
                         }
                     ]
                 },
@@ -60,7 +61,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         if "email" in field.lower():
             message = "Por favor, insira um endereço de e-mail válido"
         elif "password" in field.lower():
-            message = "A senha deve conter pelo menos 8 caracteres, incluindo letras maiúsculas, minúsculas e números"
+            message = (
+                "A senha deve conter pelo menos 8 caracteres, incluindo letras "
+                "maiúsculas, minúsculas e números"
+            )
         elif "cpf" in field.lower():
             message = "Por favor, insira um CPF válido"
         elif "phone" in field.lower():

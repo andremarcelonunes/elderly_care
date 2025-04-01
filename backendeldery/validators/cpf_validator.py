@@ -1,6 +1,6 @@
 import re
-from typing import Annotated
-from pydantic import GetPydanticSchema, GetCoreSchemaHandler
+
+from pydantic import GetCoreSchemaHandler
 from pydantic_core import PydanticCustomError, core_schema
 
 
