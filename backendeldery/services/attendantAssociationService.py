@@ -1,6 +1,6 @@
 import logging
 import traceback
-from typing import Optional, List, Set, Dict
+from typing import Dict, List, Optional, Set
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -9,11 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backendeldery.crud.function import CRUDFunction
 from backendeldery.crud.team import CRUDTeam
 from backendeldery.models import (
-    AttendantTeam,
-    Team,
-    Function,
     AttendantSpecialty,
+    AttendantTeam,
+    Function,
     Specialty,
+    Team,
 )
 
 logger = logging.getLogger("backendeldery")  # pragma: no cover
@@ -34,7 +34,7 @@ class AttendantAssociationService:
         self.user_ip = user_ip
 
     async def update_team_associations(
-        self, team_names: Optional[List[str]], crud_team: CRUDTeam
+        self, team_names: list[str] | None, crud_team: CRUDTeam
     ) -> None:
         if not team_names:
             return
@@ -205,10 +205,10 @@ class AttendantAssociationService:
         except HTTPException as e:
             await db.rollback()
             raise e
-        except Exception as e:
+        except Exception as exc:
             await db.rollback()
-            logger.error(f"Error deleting team association: {str(e)}")
+            logger.error("Error deleting team association: %s", exc)
             logger.error(traceback.format_exc())
             raise HTTPException(
-                status_code=500, detail=f"Failed to delete team association: {str(e)}"
-            )
+                status_code=500, detail=f"Failed to delete team association: {exc}"
+            ) from exc

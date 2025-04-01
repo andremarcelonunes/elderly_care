@@ -1,10 +1,9 @@
 import logging
 import time
 
-from sqlalchemy import create_engine, text, MetaData
-from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import MetaData, create_engine, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 from backendeldery.config import settings
 
@@ -237,15 +236,11 @@ def apply_audit_triggers_to_all_tables(
                 # Criar a trigger
                 connection.execute(
                     text(
-                        """
+                        f"""
                 CREATE TRIGGER {trigger_name}
                 AFTER INSERT OR UPDATE OR DELETE ON {schema_name}.{table_name}
                 FOR EACH ROW EXECUTE FUNCTION {schema_name}.log_audit();
-                """.format(
-                            trigger_name=trigger_name,
-                            schema_name=schema_name,
-                            table_name=table_name,
-                        )
+                """
                     )
                 )
 
@@ -281,7 +276,7 @@ def drop_triggers_and_function(
         # Query para buscar todas as triggers dependentes da função
         dependent_triggers = connection.execute(
             text(
-                f"""
+                """
         SELECT t.tgname AS trigger_name, c.relname AS table_name
         FROM pg_trigger t
         JOIN pg_proc p ON t.tgfoid = p.oid

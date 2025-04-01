@@ -19,6 +19,16 @@ def attendant_data():
         birthday="1980-01-01",
         nivel_experiencia="senior",
         specialties=["Cardiology"],
+        team_names=["Team A"],
+        function_names="Doctor",
+        # Add the required fields
+        address="123 Main St",
+        neighborhood="Downtown",
+        city="Test City",
+        state="TS",
+        code_address="12345",
+        registro_conselho="REG123",
+        formacao="Medicine",
     )
 
 

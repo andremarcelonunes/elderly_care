@@ -46,7 +46,7 @@ class AttendantUpdateService:
 
     async def update_attendant_core_fields(
         self, attendant: Attendant, update_data: Union[AttendantUpdate, dict]
-    ) -> None:
+    ) -> Attendant:
         # Determine update_fields: if update_data is a dict, use it directly; otherwise, use model_dump
         if isinstance(update_data, dict):
             update_fields = update_data
@@ -71,3 +71,5 @@ class AttendantUpdateService:
 
         attendant.updated_by = self.updated_by
         attendant.user_ip = self.user_ip
+        
+        return attendant

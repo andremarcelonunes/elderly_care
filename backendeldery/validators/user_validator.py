@@ -6,12 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from backendeldery.models import (
-    User,
     Client,
+    User,
     client_association,
     client_contact_association,
 )
-from backendeldery.schemas import UserCreate, SubscriberCreate
+from backendeldery.schemas import SubscriberCreate, UserCreate
 
 logger = logging.getLogger("backendeldery")  # pragma: no cover
 logger.setLevel(logging.CRITICAL)  # pragma: no cover
@@ -68,6 +68,9 @@ class UserValidator:
     def validate_subscriber(db: Session, user_data: dict):
         # Check if a user with the same email or phone already exists
         logger.info("Entering validate_subscriber method")
+        if user_data["client_data"] is None:
+            raise HTTPException(status_code=400, detail="You must inform client data")
+
         existing_user = (
             db.query(User)
             .filter(
@@ -76,8 +79,6 @@ class UserValidator:
             .first()
         )
         logger.info("Existing user: %s", existing_user)
-        if user_data["client_data"] is None:
-            raise HTTPException(status_code=400, detail="You must inform client data")
 
         if (
             db.query(Client)
@@ -99,10 +100,16 @@ class UserValidator:
                 existing_client
                 and existing_client.cpf != user_data["client_data"]["cpf"]
             ):
-                raise HTTPException(
-                    status_code=422,
-                    detail="This user is already a client with another CPF",
-                )
+                if existing_user.phone == user_data["phone"]:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="This phone user has  already belonged to a client with another CPF",
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="This email user has  already belonged to a client with another CPF",
+                    )
 
         existing_client = (
             db.query(Client)
@@ -111,31 +118,6 @@ class UserValidator:
         )
         if existing_client:
             raise HTTPException(status_code=422, detail="This cpf already exists")
-
-        if user_data["email"] is not None:
-            logger.info("Checando user com email: %s", user_data["email"])
-            existing_client_with_email = (
-                db.query(User).filter(User.email == user_data["email"]).first()
-            )
-            logger.info("Email existente: %s", existing_client_with_email)
-            existing_client_with_phone = (
-                db.query(User).filter(User.phone == user_data["phone"]).first()
-            )
-            logger.info("Telefone existente: %s", existing_client_with_email)
-        else:
-            existing_client_with_email = False
-            existing_client_with_phone = (
-                db.query(Client)
-                .join(User)
-                .filter(User.phone == user_data["phone"])
-                .first()
-            )
-        logger.info("Checando user com email: %s", existing_client_with_email)
-        if existing_client_with_email or existing_client_with_phone:
-            raise HTTPException(
-                status_code=422,
-                detail="A client with this email or phone already exists",
-            )
 
     @staticmethod
     def validate_association_assisted(

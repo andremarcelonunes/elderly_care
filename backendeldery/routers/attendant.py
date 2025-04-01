@@ -155,9 +155,7 @@ async def delete_team_association(
         )
 
         # Call the instance method
-        return await service.delete_team_relation(
-            db, attendant_id, team_id, user_ip=client_ip, updated_by=x_user_id
-        )
+        return await service.delete_team_relation(db, attendant_id, team_id)
     except HTTPException as e:
         raise e
     except Exception as e:

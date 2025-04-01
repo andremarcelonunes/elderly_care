@@ -21,13 +21,55 @@ async def http_exception_handler(request, exc):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Verifica se é um erro de JSON
+    if hasattr(exc, "body") and isinstance(exc.body, str):
+        try:
+            # Tenta decodificar o JSON para identificar o erro
+            import json
+
+            json.loads(exc.body)
+        except json.JSONDecodeError as json_exc:
+            # Extrai a linha do erro
+            error_line = json_exc.lineno
+
+            # Lê o JSON até a linha do erro
+            lines = exc.body.split("\n")
+            error_line_content = lines[error_line - 1]
+
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "detail": [
+                        {
+                            "field": "body",
+                            "message": f"Erro de formatação JSON na linha {error_line}: {error_line_content}",
+                        }
+                    ]
+                },
+            )
+
+    # Se não for erro de JSON, continua com o tratamento normal
     errors = exc.errors()
+    formatted_errors = []
+
     for error in errors:
-        if "ctx" in error and "error" in error["ctx"]:
-            error["ctx"]["error"] = str(error["ctx"]["error"])
+        field = ".".join(str(x) for x in error["loc"])
+        message = error["msg"]
+
+        # Mensagens mais amigáveis para erros comuns
+        if "email" in field.lower():
+            message = "Por favor, insira um endereço de e-mail válido"
+        elif "password" in field.lower():
+            message = "A senha deve conter pelo menos 8 caracteres, incluindo letras maiúsculas, minúsculas e números"
+        elif "cpf" in field.lower():
+            message = "Por favor, insira um CPF válido"
+        elif "phone" in field.lower():
+            message = "Por favor, insira um número de telefone válido"
+
+        formatted_errors.append({"field": field, "message": message})
+
     return JSONResponse(
-        status_code=400,
-        content={"detail": errors, "body": exc.body},
+        status_code=400, content={"detail": formatted_errors, "body": exc.body}
     )
 
 

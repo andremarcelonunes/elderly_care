@@ -6,7 +6,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str
     DATABASE_URL_SYNC: str
     DATABASE_URL_ASYNC: str
     MONGO_URI: str

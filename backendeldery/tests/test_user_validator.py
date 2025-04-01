@@ -3,7 +3,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from backendeldery.models import User, Client
+from backendeldery.models import Client, User
 from backendeldery.schemas import UserCreate
 from backendeldery.validators.user_validator import UserValidator
 
@@ -407,8 +407,8 @@ def test_validate_user_raises_422_when_phone_already_exists(mocker):
 
     mock_db.query.return_value = mock_query_result
 
-    from fastapi import HTTPException
     import pytest
+    from fastapi import HTTPException
 
     # Act & Assert
     with pytest.raises(HTTPException) as exc_info:
@@ -423,69 +423,6 @@ def test_validate_user_raises_422_when_phone_already_exists(mocker):
     mock_query_result.filter.assert_called_once()
 
     # Rejects when user exists and is already a client with different CPF
-
-
-def test_rejects_when_user_exists_with_different_cpf(mocker):
-    # Arrange
-    mock_db = mocker.Mock()
-
-    # Set up the user query
-    user_query = mocker.Mock()
-    user_query.first.return_value = mocker.Mock(id=1)  # existing user
-
-    # Set up the join chain for Client query that should return None.
-    client_join_mock = mocker.Mock()
-    client_join_mock.join.return_value = client_join_mock
-    client_join_mock.filter.return_value = client_join_mock
-    client_join_mock.first.return_value = (
-        None  # Important: return None so it doesn't trigger the "client already exists"
-    )
-
-    # Set up the query for checking client's CPF for existing user (second Client query)
-    client_by_user_mock = mocker.Mock()
-    existing_client = mocker.Mock()
-    existing_client.cpf = "98765432100"  # Different than the CPF we're testing with
-    client_by_user_mock.filter.return_value = client_by_user_mock
-    client_by_user_mock.first.return_value = existing_client
-
-    # Optionally, a third query if needed (for checking client by cpf)
-    client_by_cpf_mock = mocker.Mock()
-    client_by_cpf_mock.filter.return_value = client_by_cpf_mock
-    client_by_cpf_mock.first.return_value = None
-
-    user_data = {
-        "email": "test@example.com",
-        "phone": "1234567890",
-        "client_data": {"cpf": "12345678900"},  # Different CPF than the existing client
-    }
-
-    # Use a side effect to return the proper mock for each call to db.query()
-    def query_side_effect(model):
-        if model == User:
-            return user_query
-        elif model == Client:
-            if not hasattr(query_side_effect, "client_call_count"):
-                query_side_effect.client_call_count = 0
-            query_side_effect.client_call_count += 1
-            if query_side_effect.client_call_count == 1:
-                # First Client query: join query should return None.
-                return client_join_mock
-            elif query_side_effect.client_call_count == 2:
-                # Second Client query: checking by user_id returns an existing client.
-                return client_by_user_mock
-            elif query_side_effect.client_call_count == 3:
-                # Third Client query: checking by cpf (if reached) returns None.
-                return client_by_cpf_mock
-        return mocker.DEFAULT
-
-    mock_db.query.side_effect = query_side_effect
-
-    # Act & Assert
-    with pytest.raises(HTTPException) as excinfo:
-        UserValidator.validate_subscriber(mock_db, user_data)
-
-    assert excinfo.value.status_code == 422
-    assert excinfo.value.detail == "This user is already a client with another CPF"
 
 
 def test_rejects_when_cpf_already_exists(mocker):
@@ -532,113 +469,6 @@ def test_rejects_when_cpf_already_exists(mocker):
     assert excinfo.value.detail == "This cpf already exists"
 
 
-def test_rejects_when_email_exists(mocker):
-    mock_db = mocker.Mock()
-    user_data = {
-        "email": "existing@example.com",
-        "phone": "1234567890",
-        "client_data": {"cpf": "12345678900"},
-    }
-
-    call_count = {"count": 0}
-
-    def query_side_effect(model):
-        call_count["count"] += 1
-        # Call 1: existing_user query
-        if model == User and call_count["count"] == 1:
-            user_query = mocker.Mock()
-            user_query.filter.return_value.first.return_value = None
-            return user_query
-        # Call 2: join query for (Client, User, email, phone, cpf)
-        elif model == Client and call_count["count"] == 2:
-            chain = mocker.Mock()
-            chain.join.return_value = chain
-            chain.filter.return_value = chain
-            chain.first.return_value = None
-            return chain
-        # Call 3: CPF query for Client
-        elif model == Client and call_count["count"] == 3:
-            chain = mocker.Mock()
-            chain.filter.return_value = chain
-            chain.first.return_value = None
-            return chain
-        # Call 4: Email query: simulate an existing user with that email
-        elif model == User and call_count["count"] == 4:
-            chain = mocker.Mock()
-            chain.filter.return_value = chain
-            chain.first.return_value = mocker.Mock(email=user_data["email"])
-            return chain
-        # Call 5: Phone query: return None
-        elif model == User and call_count["count"] == 5:
-            chain = mocker.Mock()
-            chain.filter.return_value = chain
-            chain.first.return_value = None
-            return chain
-        default = mocker.Mock()
-        default.first.return_value = None
-        return default
-
-    mock_db.query.side_effect = query_side_effect
-
-    with pytest.raises(HTTPException) as excinfo:
-        UserValidator.validate_subscriber(mock_db, user_data)
-    # Expect the final branch to trigger for email/phone conflict.
-    assert excinfo.value.status_code == 422
-    assert excinfo.value.detail == "A client with this email or phone already exists"
-
-
-def test_rejects_when_phone_exists_with_email_none(mocker):
-    mock_db = mocker.Mock()
-    user_data = {
-        "email": None,  # Email is None; we go into the else branch.
-        "phone": "1234567890",
-        "client_data": {"cpf": "12345678900"},
-    }
-
-    call_count = {"count": 0}
-
-    def query_side_effect(model):
-        call_count["count"] += 1
-        # Call 1: existing_user query
-        if model == User and call_count["count"] == 1:
-            user_query = mocker.Mock()
-            user_query.filter.return_value.first.return_value = None
-            return user_query
-        # Call 2: join query for (Client, User, email, phone, cpf) that should be None
-        elif model == Client and call_count["count"] == 2:
-            chain = mocker.Mock()
-            chain.join.return_value = chain
-            chain.filter.return_value = chain
-            chain.first.return_value = None
-            return chain
-        # Call 3: CPF query for Client
-        elif model == Client and call_count["count"] == 3:
-            chain = mocker.Mock()
-            chain.filter.return_value = chain
-            chain.first.return_value = None
-            return chain
-        # Since email is None, we go to the else branch, where we do:
-        # db.query(Client).join(User).filter(User.phone == user_data["phone"]).first()
-        elif model == Client and call_count["count"] == 4:
-            chain = mocker.Mock()
-            chain.join.return_value = chain
-            chain.filter.return_value = chain
-            # Here, return a truthy value to simulate phone conflict.
-            chain.first.return_value = mocker.Mock()
-            return chain
-        default = mocker.Mock()
-        default.first.return_value = None
-        return default
-
-    mock_db.query.side_effect = query_side_effect
-
-    with pytest.raises(HTTPException) as excinfo:
-        UserValidator.validate_subscriber(mock_db, user_data)
-    # Expect the final branch (email is None, but phone conflict exists) to trigger.
-    assert excinfo.value.status_code == 422
-    assert excinfo.value.detail == "A client with this email or phone already exists"
-
-
 def test_validate_deletion_contact_association_not_authorized(mocker):
     # Arrange
     mock_db = mocker.Mock()
@@ -679,3 +509,210 @@ def test_validate_deletion_contact_association_not_authorized(mocker):
 
     assert excinfo.value.status_code == 403
     assert excinfo.value.detail == "You are not authorized to delete this association"
+
+    # Rejects when email or phone belongs to existing user with different CPF
+
+
+def test_rejects_when_phone_belongs_to_existing_user_with_different_cpf(
+    mocker, user_data
+):
+    # Para esse teste, não alteramos o telefone, deixando-o como definido no fixture.
+    # Mas garantimos que o existing_user tenha o mesmo telefone e um email diferente (não influencia na verificação do telefone).
+    # Assim, a condição `if existing_user.phone == user_data["phone"]` será verdadeira.
+
+    mock_db = mocker.Mock()
+
+    # Simula um usuário existente com o mesmo telefone que o user_data, mas email diferente
+    existing_user = mocker.Mock()
+    existing_user.id = 1
+    existing_user.email = "different@example.com"  # email diferente
+    existing_user.phone = user_data.phone  # mesmo telefone que user_data
+
+    # Simula um client associado ao usuário existente com CPF diferente do informado em user_data
+    existing_client = mocker.Mock()
+    existing_client.cpf = "09876543210"
+
+    # Configura os mocks para as queries executadas no método:
+    # 1. Query para User: retorna o existing_user.
+    # 2. Query para Client com join (verificando CPF, email e phone): retorna None para não disparar "The client already exists".
+    # 3. Query para Client filtrando por user_id: retorna o existing_client.
+    # 4. Query para Client filtrando por CPF: retorna None para não disparar "This cpf already exists".
+    def query_side_effect(model):
+        if model == User:
+            query_mock = mocker.Mock()
+            query_mock.filter.return_value.first.return_value = existing_user
+            return query_mock
+        elif model == Client:
+            if not hasattr(query_side_effect, "client_count"):
+                query_side_effect.client_count = 0
+            query_side_effect.client_count += 1
+            if query_side_effect.client_count == 1:
+                # Query com join: retorna None para evitar o erro "The client already exists"
+                join_query_mock = mocker.Mock()
+                join_query_mock.join.return_value.filter.return_value.first.return_value = (
+                    None
+                )
+                return join_query_mock
+            elif query_side_effect.client_count == 2:
+                # Query para obter Client pelo user_id
+                query_mock = mocker.Mock()
+                query_mock.filter.return_value.first.return_value = existing_client
+                return query_mock
+            elif query_side_effect.client_count == 3:
+                # Query para obter Client pelo CPF
+                query_mock = mocker.Mock()
+                query_mock.filter.return_value.first.return_value = None
+                return query_mock
+
+    mock_db.query.side_effect = query_side_effect
+
+    # Patch no logger para não produzir logs reais
+    mocker.patch("backendeldery.validators.user_validator.logger")
+
+    # Act & Assert
+    with pytest.raises(HTTPException) as excinfo:
+        UserValidator.validate_subscriber(mock_db, user_data.dict())
+
+    assert excinfo.value.status_code == 422
+    assert "This phone user has  already belonged to a client with another CPF" in str(
+        excinfo.value.detail
+    )
+
+
+def test_rejects_when_email_belongs_to_existing_user_with_different_cpf(
+    mocker, user_data
+):
+    # Arrange
+    # Sobrescreve o telefone para um valor diferente do existente
+    user_data.phone = "+111111111"
+
+    mock_db = mocker.Mock()
+
+    # Simula o usuário existente
+    existing_user = mocker.Mock()
+    existing_user.id = 1
+    existing_user.email = user_data.email
+    existing_user.phone = "+123456789"  # telefone diferente do user_data
+
+    # Simula um client associado ao usuário existente com CPF diferente
+    existing_client = mocker.Mock()
+    existing_client.cpf = "09876543210"
+
+    # --- Configuração dos mocks para as queries ---
+
+    # Query para User: deve retornar o usuário existente
+    user_query_mock = mocker.Mock()
+    user_query_mock.filter.return_value.first.return_value = existing_user
+
+    # Query para Client com join (primeira chamada): retorna None para não disparar "The client already exists"
+    client_join_query_mock = mocker.Mock()
+    client_join_query_mock.join.return_value.filter.return_value.first.return_value = (
+        None
+    )
+
+    # Query para Client filtrando por user_id (segunda chamada): retorna o client associado
+    client_user_query_mock = mocker.Mock()
+    client_user_query_mock.filter.return_value.first.return_value = existing_client
+
+    # Query para Client filtrando por CPF (terceira chamada): retorna None para não disparar "This cpf already exists"
+    client_cpf_query_mock = mocker.Mock()
+    client_cpf_query_mock.filter.return_value.first.return_value = None
+
+    # Função para decidir qual mock retornar dependendo do modelo e da ordem da chamada para Client
+    def query_side_effect(model):
+        if model == User:
+            return user_query_mock
+        elif model == Client:
+            if not hasattr(query_side_effect, "client_count"):
+                query_side_effect.client_count = 0
+            query_side_effect.client_count += 1
+            if query_side_effect.client_count == 1:
+                # Essa é a query com join para verificar se já existe um Client com CPF, email e phone
+                return client_join_query_mock
+            elif query_side_effect.client_count == 2:
+                # Query para obter Client pelo user_id
+                return client_user_query_mock
+            elif query_side_effect.client_count == 3:
+                # Query para obter Client pelo CPF
+                return client_cpf_query_mock
+
+    mock_db.query.side_effect = query_side_effect
+
+    # Patch do logger para não gerar logs reais
+    mocker.patch("backendeldery.validators.user_validator.logger")
+
+    # Act & Assert
+    with pytest.raises(HTTPException) as excinfo:
+        UserValidator.validate_subscriber(mock_db, user_data.dict())
+
+    assert excinfo.value.status_code == 422
+    assert "This email user has  already belonged to a client with another CPF" in str(
+        excinfo.value.detail
+    )
+
+
+def test_validate_user_success(db_session, user_data):
+    # Simula que nenhuma query encontra um usuário com o email ou telefone
+    db_session.query.return_value.filter.return_value.first.return_value = None
+
+    # Se a função não levanta exceção, ela "passa" e pode retornar None ou algum valor padrão
+    result = UserValidator.validate_user(db_session, user_data)
+
+    # Se a função não tiver retorno (apenas valida e segue), não precisamos de assert extra.
+    # Apenas garantir que nenhuma exceção foi levantada.
+
+
+def test_validate_client_success(db_session, user_data):
+    user = User(id=1)
+    # Simula que a query não encontra nenhum client existente
+    db_session.query.return_value.filter.return_value.first.return_value = None
+
+    # Se a função não levantar exceção, a validação passou.
+    result = UserValidator.validate_client(db_session, user, user_data.client_data)
+
+
+def test_validate_subscriber_success(db_session, user_data, mocker):
+    # Configura um side_effect para o db_session.query que simula as queries para User e Client
+    def query_side_effect(model):
+        if model == User:
+            q = mocker.Mock()
+            # Ao filtrar por email ou phone, não encontra nenhum usuário existente
+            q.filter.return_value.first.return_value = None
+            return q
+        elif model == Client:
+            q = mocker.Mock()
+            # Simula o comportamento do join: quando join é chamado, retorna outro mock
+            join_mock = mocker.Mock()
+            # O join com filter deve retornar None para que não dispare "The client already exists"
+            join_mock.filter.return_value.first.return_value = None
+            q.join.return_value = join_mock
+            # Se o Client for consultado diretamente (por exemplo, para buscar pelo user_id ou CPF), também retorna None
+            q.filter.return_value.first.return_value = None
+            return q
+
+    db_session.query.side_effect = query_side_effect
+
+    # Executa a validação; como nenhum conflito é encontrado, nenhuma exceção deve ser levantada.
+    result = UserValidator.validate_subscriber(db_session, user_data.dict())
+
+    # Se a função não retorna nada (apenas valida e segue), podemos assertar que o retorno é None.
+    assert result is None
+
+
+def test_validate_deletion_contact_association_success(db_session, mocker):
+    client = mocker.Mock(user_id=1)
+    contact = mocker.Mock(id=2)
+
+    # Simula que as queries para client e contato retornam os objetos corretos
+    db_session.query.return_value.filter.return_value.one_or_none.side_effect = [
+        client,
+        contact,
+    ]
+    # Simula que não há associação conflitante (first() retorna None)
+    db_session.query.return_value.filter.return_value.first.return_value = None
+
+    # x_user_id igual ao user_id do client: autorizado
+    UserValidator.validate_deletion_contact_association(
+        db_session, client_id=1, contact_id=2, x_user_id=1
+    )
+    # Se não levanta exceção, a deleção está autorizada.

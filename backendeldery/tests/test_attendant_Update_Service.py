@@ -98,22 +98,40 @@ async def test_update_attendant_with_valid_attendant_update(mocker):
     user_ip = "192.168.1.1"
     service = AttendantUpdateService(db, updated_by, user_ip)
 
-    attendant = Attendant(user_id=1, cpf="12345678901", created_by=100)
+    # Create a mock attendant
+    mock_attendant = Attendant(user_id=1, cpf="12345678900", created_by=1)
 
-    update_data = AttendantUpdate(
-        address="New Address", city="New City", state="NS", nivel_experiencia="senior"
+    # Create a valid AttendantUpdate with all required fields
+    attendant_update = AttendantUpdate(
+        address="New Address",
+        neighborhood="New Neighborhood",
+        city="New City",
+        state="New State",
+        code_address="12345",
+        registro_conselho="New Registry",
+        formacao="New Formation",
+        nivel_experiencia="senior",
+        team_names=["Team A"],
+        function_names="Doctor",
+        specialties=["Cardiology"]
     )
 
+    # Mock the get_attendant method
+    service.get_attendant = AsyncMock(return_value=mock_attendant)
+
     # Act
-    await service.update_attendant_core_fields(attendant, update_data)
+    result = await service.update_attendant_core_fields(mock_attendant, attendant_update)
 
     # Assert
-    assert attendant.address == "New Address"
-    assert attendant.city == "New City"
-    assert attendant.state == "NS"
-    assert attendant.nivel_experiencia == "senior"
-    assert attendant.updated_by == updated_by
-    assert attendant.user_ip == user_ip
+    assert result == mock_attendant
+    assert mock_attendant.address == attendant_update.address
+    assert mock_attendant.neighborhood == attendant_update.neighborhood
+    assert mock_attendant.city == attendant_update.city
+    assert mock_attendant.state == attendant_update.state
+    assert mock_attendant.code_address == attendant_update.code_address
+    assert mock_attendant.registro_conselho == attendant_update.registro_conselho
+    assert mock_attendant.formacao == attendant_update.formacao
+    assert mock_attendant.nivel_experiencia == attendant_update.nivel_experiencia
 
 
 @pytest.mark.asyncio
