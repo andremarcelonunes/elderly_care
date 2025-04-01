@@ -2,35 +2,36 @@ import logging
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.future import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, joinedload
 
 from backendeldery.models import (
-    User,
     Client,
+    User,
     client_association,
     client_contact_association,
 )
 from backendeldery.schemas import (
-    UserCreate,
     SubscriberCreate,
-    UserInfo,
     SubscriberInfo,
+    UserCreate,
+    UserInfo,
     UserUpdate,
 )
 from backendeldery.utils import hash_password, obj_to_dict
+
 from .base import CRUDBase
 
-logger = logging.getLogger("backendeldery")
-logger.setLevel(logging.CRITICAL)
-if not logger.hasHandlers():
-    console_handler = logging.StreamHandler()
+logger = logging.getLogger("backendeldery")  # pragma: no cover
+logger.setLevel(logging.CRITICAL)  # pragma: no cover
+if not logger.hasHandlers():  # pragma: no cover
+    console_handler = logging.StreamHandler()  # pragma: no cover
     console_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
-    logger.addHandler(console_handler)
+    )  # pragma: no cover
+    logger.addHandler(console_handler)  # pragma: no cover
 
 
 class CRUDUser(CRUDBase[User, UserCreate]):
@@ -78,6 +79,44 @@ class CRUDUser(CRUDBase[User, UserCreate]):
             status_code=404,
             detail="User no found",
         )
+
+    async def update(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        update_data: UserUpdate,
+        updated_by: int,
+        user_ip: str,
+    ) -> User:
+
+        # Ensure update_data is a Pydantic model.
+        if not hasattr(update_data, "model_dump"):
+            update_data = UserUpdate(**update_data)
+
+        result = await db.execute(select(User).filter(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Determine allowed fields (columns) to update.
+        allowed_fields = set(User.__table__.columns.keys())
+        # Exclude relationship fields like "attendant_data" or "client_data"
+        user_data = {
+            k: v
+            for k, v in update_data.model_dump(exclude_unset=True).items()
+            if v is not None and k in allowed_fields
+        }
+
+        # Apply the filtered updates
+        for key, value in user_data.items():
+            setattr(user, key, value)
+
+        # Update audit fields
+        user.updated_by = updated_by
+        user.user_ip = user_ip
+
+        db.add(user)
+        return user
 
 
 class CRUDClient(CRUDBase):

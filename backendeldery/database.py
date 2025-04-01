@@ -1,8 +1,9 @@
 import logging
 import time
 
-from sqlalchemy import create_engine, text, MetaData
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import MetaData, create_engine, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 from backendeldery.config import settings
 
@@ -12,23 +13,40 @@ logging.getLogger("sqlalchemy.pool").setLevel(logging.CRITICAL)
 
 
 class Database:
-    def __init__(self, database_url):
+    def __init__(self, sync_database_url: str, async_database_url: str = None):
         # Configura o SQLAlchemy
-        self.engine = create_engine(database_url)
+        self.engine = create_engine(sync_database_url)
         self.SessionLocal = sessionmaker(
             autocommit=False, autoflush=False, bind=self.engine
         )
         self.Base = declarative_base()
+        self.async_engine = create_async_engine(async_database_url, echo=True)
+        self.AsyncSessionLocal = async_sessionmaker(
+            bind=self.async_engine,
+            autocommit=False,
+            autoflush=False,
+            class_=AsyncSession,
+        )
 
     def get_db(self):
         """
-        Retorna uma sessão do banco de dados.
+        Returns a synchronous DB session.
         """
         db = self.SessionLocal()
         try:
             yield db
         finally:
             db.close()
+
+    async def get_async_db(self):
+        """
+        Retorna uma sessão do banco de dados.
+        """
+        db = self.AsyncSessionLocal()
+        try:
+            yield db
+        finally:
+            await db.close()
 
     def execute(self, sql):
         """
@@ -38,7 +56,10 @@ class Database:
             connection.execute(sql)
 
 
-db_instance = Database(settings.DATABASE_URL)
+db_instance = Database(
+    sync_database_url=settings.DATABASE_URL_SYNC,
+    async_database_url=settings.DATABASE_URL_ASYNC,  # This can be derived in settings as shown earlier.
+)
 
 # Alias para Base e SessionLocal, se necessário
 Base = db_instance.Base
@@ -46,7 +67,7 @@ SessionLocal = db_instance.SessionLocal
 
 
 # Configuração do SQLAlchemy
-engine = create_engine(settings.DATABASE_URL)
+engine = db_instance.engine
 
 
 function_sql = text(
@@ -215,15 +236,11 @@ def apply_audit_triggers_to_all_tables(
                 # Criar a trigger
                 connection.execute(
                     text(
-                        """
+                        f"""
                 CREATE TRIGGER {trigger_name}
                 AFTER INSERT OR UPDATE OR DELETE ON {schema_name}.{table_name}
                 FOR EACH ROW EXECUTE FUNCTION {schema_name}.log_audit();
-                """.format(
-                            trigger_name=trigger_name,
-                            schema_name=schema_name,
-                            table_name=table_name,
-                        )
+                """
                     )
                 )
 
@@ -259,7 +276,7 @@ def drop_triggers_and_function(
         # Query para buscar todas as triggers dependentes da função
         dependent_triggers = connection.execute(
             text(
-                f"""
+                """
         SELECT t.tgname AS trigger_name, c.relname AS table_name
         FROM pg_trigger t
         JOIN pg_proc p ON t.tgfoid = p.oid

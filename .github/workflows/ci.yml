@@ -25,10 +25,15 @@ jobs:
           python-version: '3.12'
 
       - name: Set environment variables and Install Dependencies
+        env:
+          DATABASE_URL_SYNC: "sqlite:///./test.db"
+          DATABASE_URL_ASYNC: "sqlite+aiosqlite:///./test.db"  # Note the +aiosqlite
+          MONGO_URI: "mongodb://localhost:27017"
+          MONGO_DB: "elderly_care"
         run: |
           python -m pip install --upgrade pip
           pip install poetry
-          poetry add --dev pytest pytest-cov pytest-json-report deepsource
+          poetry add --dev pytest pytest-cov pytest-json-report pytest-asyncio deepsource
           poetry lock
           poetry install
 
@@ -45,9 +50,10 @@ jobs:
 
       - name: Run Tests
         env:
-          DATABASE_URL: "sqlite:///./test.db"
-          MONGO_URI: "mock_mongo_uri"
-          MONGO_DB: "mock_mongo_db"
+          DATABASE_URL_SYNC: "sqlite:///./test.db"
+          DATABASE_URL_ASYNC: "sqlite+aiosqlite:///./test.db"  # Note the +aiosqlite
+          MONGO_URI: "mongodb://localhost:27017"
+          MONGO_DB: "elderly_care"
         run: |
           poetry run pytest -v --cov=./ --cov-report xml --cov-config=.coveragerc
 

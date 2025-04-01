@@ -1,6 +1,12 @@
 import pytest
 from pydantic import BaseModel, ValidationError
-from backendeldery.schemas import UserUpdate, ClientUpdate, SubscriberCreate, UserCreate, AttendantCreate
+from backendeldery.schemas import (
+    UserUpdate,
+    ClientUpdate,
+    SubscriberCreate,
+    UserCreate,
+    AttendantCreate,
+)
 
 
 def test_check_extra_fields_user():
@@ -66,7 +72,7 @@ def test_user_create_subscriber_missing_client_data():
             role="subscriber",
             phone="+123456789",
             email="john.doe@example.com",
-            password="password123"
+            password="password123",
         )
     assert "client_data is required when role is 'subscriber'" in str(exc_info.value)
 
@@ -77,11 +83,16 @@ def test_user_create_subscriber_missing_email():
             name="John Doe",
             role="subscriber",
             phone="+123456789",
+            password="password123",
             client_data=SubscriberCreate(
                 cpf="12345678900",
-                birthday="2000-01-01"
+                birthday="2000-01-01",
+                address="123 Main St",
+                neighborhood="Downtown",
+                city="Metropolis",
+                state="NY",
+                code_address="12345",
             ),
-            password="password123"
         )
     assert "email is required when role is 'subscriber'" in str(exc_info.value)
 
@@ -95,8 +106,13 @@ def test_user_create_subscriber_missing_password():
             email="john.doe@example.com",
             client_data=SubscriberCreate(
                 cpf="12345678900",
-                birthday="2000-01-01"
-            )
+                birthday="2000-01-01",
+                address="123 Main St",
+                neighborhood="Downtown",
+                city="Metropolis",
+                state="NY",
+                code_address="12345",
+            ),
         )
     assert "password is required when role is 'subscriber'" in str(exc_info.value)
 
@@ -111,10 +127,14 @@ def test_user_create_invalid_phone():
             password="password123",
             client_data=SubscriberCreate(
                 cpf="12345678900",
-                birthday="2000-01-01"
-            )
+                birthday="2000-01-01",
+                address="123 Main St",
+                neighborhood="Downtown",
+                city="Metropolis",
+                state="NY",
+                code_address="12345",
+            ),
         )
-    # Adjusted the expected substring to match the actual error message.
     assert "String should match pattern" in str(exc_info.value)
 
 
@@ -125,7 +145,7 @@ def test_user_create_attendant_missing_attendant_data():
             role="attendant",
             phone="+123456789",
             email="john.doe@example.com",
-            password="password123"
+            password="password123",
         )
     assert "attendant_data is required when role is 'attendant'" in str(exc_info.value)
 
@@ -139,10 +159,17 @@ def test_user_create_attendant_missing_email():
             password="password123",
             attendant_data=AttendantCreate(
                 cpf="12345678900",
+                address="123 Main St",
+                neighborhood="Downtown",
+                city="Metropolis",
+                state="NY",
+                code_address="12345",
                 birthday="1980-01-01",
+                registro_conselho="12345",
                 nivel_experiencia="senior",
-                specialties=["Cardiology"]
-            )
+                formacao="Medicine",
+                specialties=["Cardiology"],
+            ),
         )
     assert "email is required when role is 'attendant'" in str(exc_info.value)
 
@@ -156,9 +183,16 @@ def test_user_create_attendant_missing_password():
             email="john.doe@example.com",
             attendant_data=AttendantCreate(
                 cpf="12345678900",
+                address="123 Main St",
+                neighborhood="Downtown",
+                city="Metropolis",
+                state="NY",
+                code_address="12345",
                 birthday="1980-01-01",
+                registro_conselho="12345",
                 nivel_experiencia="senior",
-                specialties=["Cardiology"]
-            )
+                formacao="Medicine",
+                specialties=["Cardiology"],
+            ),
         )
     assert "password is required when role is 'attendant'" in str(exc_info.value)

@@ -2,10 +2,22 @@
 from typing import List
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session, selectinload
 
 from backendeldery.crud.base import CRUDBase
-from backendeldery.models import Team
+from backendeldery.models import (
+    Team,
+    Attendant,
+    AttendantTeam,
+    AttendantSpecialty,
+    Client,
+)
+
+
+class TeamAttendantAssociation:
+    pass
 
 
 class CRUDTeam(CRUDBase):
@@ -14,6 +26,12 @@ class CRUDTeam(CRUDBase):
 
     async def get_by_name(self, db: Session, name: str) -> Team:
         return db.query(self.model).filter(self.model.team_name == name).first()
+
+    async def get_by_name_async(self, db: AsyncSession, name: str) -> Team:
+        result = await db.execute(
+            select(self.model).filter(self.model.team_name == name)
+        )
+        return result.scalars().first()
 
     async def create(
         self, db: Session, team_name: str, team_site: str, created_by: int, user_ip: str
@@ -28,6 +46,26 @@ class CRUDTeam(CRUDBase):
         db.add(team)
         db.flush()
         db.refresh(team)
+        return team
+
+    async def create_async(
+        self,
+        db: AsyncSession,
+        team_name: str,
+        team_site: str,
+        created_by: int,
+        user_ip: str,
+    ) -> Team:
+        team = Team(
+            team_name=team_name,
+            team_site=team_site,
+            created_by=created_by,
+            user_ip=user_ip,
+        )
+        db.add(team)
+        # Await flush and refresh so that team_id is assigned.
+        await db.flush()
+        await db.refresh(team)
         return team
 
     async def update(
@@ -54,8 +92,52 @@ class CRUDTeam(CRUDBase):
         teams = db.query(self.model).all()
         return teams
 
-    async def list_attendants(self, db: Session, team_id: int):
-        team = db.query(Team).filter(Team.team_id == team_id).first()
+    async def list_attendants(self, db: AsyncSession, team_id: int):
+        result = await db.execute(
+            select(Team)
+            .options(
+                # Carrega a associação do time com os attendants
+                selectinload(Team.attendant_associations).selectinload(
+                    AttendantTeam.attendant
+                )
+                # Carrega o usuário relacionado ao attendant
+                .selectinload(Attendant.user),
+                # Eager load das especialidades do attendant
+                selectinload(Team.attendant_associations)
+                .selectinload(AttendantTeam.attendant)
+                .selectinload(Attendant.specialty_associations)
+                .selectinload(AttendantSpecialty.specialty),
+                # Eager load dos times relacionados (para team_names)
+                selectinload(Team.attendant_associations)
+                .selectinload(AttendantTeam.attendant)
+                .selectinload(Attendant.team_associations)
+                .selectinload(AttendantTeam.team),
+                # Eager load da função (para function_names)
+                selectinload(Team.attendant_associations)
+                .selectinload(AttendantTeam.attendant)
+                .selectinload(Attendant.function),
+            )
+            .filter(Team.team_id == team_id)
+        )
+        team = result.scalars().first()
         if not team:
             raise HTTPException(status_code=404, detail="Team not found")
         return [assoc.attendant for assoc in team.attendant_associations]
+
+    async def get_teams_by_attendant_id(
+        self, db: AsyncSession, attendant_id: int
+    ) -> List[Team]:
+        """
+        Retrieve all teams associated with a given attendant.
+        """
+        query = (
+            select(Team)
+            .options(
+                # Eager load clients, and within each client, eager load the user relationship.
+                selectinload(Team.clients).selectinload(Client.user)
+            )
+            .join(AttendantTeam, Team.team_id == AttendantTeam.team_id)
+            .filter(AttendantTeam.attendant_id == attendant_id)
+        )
+        result = await db.execute(query)
+        return result.scalars().all()

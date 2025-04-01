@@ -18,7 +18,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType]):
         obj = db.query(self.model).filter(self.model.id == id).first()
         return obj_to_dict(obj) if obj else None
 
-    async def create(self, db: Session, obj_in: CreateSchemaType, **kwargs) -> dict:
+    async def create(
+        self, db: Session, obj_in: CreateSchemaType, created_by: int, user_ip: str
+    ) -> dict:
         obj_data = self.model(**obj_in.dict())
         db.add(obj_data)
         db.commit()
@@ -26,7 +28,12 @@ class CRUDBase(Generic[ModelType, CreateSchemaType]):
         return obj_to_dict(obj_data)
 
     async def update(
-        self, db: Session, id: int, obj_in: CreateSchemaType, **kwargs
+        self,
+        db: Session,
+        id: int,
+        obj_in: CreateSchemaType,
+        created_by: int,
+        user_ip: str,
     ) -> dict:
         # Busca o objeto no banco de dados
         db_obj = db.query(self.model).filter(self.model.id == id).first()

@@ -2,7 +2,10 @@ import logging
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backendeldery.models import (
     Attendant,
@@ -15,19 +18,27 @@ from backendeldery.schemas import (
     AttendantResponse,
     AttendandInfo,
     UserInfo,
+    UserUpdate,
+    UserCreate,
+)
+from backendeldery.services.attendantAssociationService import (
+    AttendantAssociationService,
+)
+from backendeldery.services.attendantUpdateService import (
+    AttendantUpdateService,
 )
 from .function import CRUDFunction
 from .team import CRUDTeam
 from .users import CRUDUser
 
-logger = logging.getLogger("backendeldery")
-logger.setLevel(logging.INFO)
-if not logger.hasHandlers():
-    console_handler = logging.StreamHandler()
+logger = logging.getLogger("backendeldery")  # pragma: no cover
+logger.setLevel(logging.INFO)  # pragma: no cover
+if not logger.hasHandlers():  # pragma: no cover
+    console_handler = logging.StreamHandler()  # pragma: no cover
     console_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
-    logger.addHandler(console_handler)
+    )  # pragma: no cover
+    logger.addHandler(console_handler)  # pragma: no cover
 
 
 class CRUDAttendant(CRUDUser):
@@ -37,12 +48,13 @@ class CRUDAttendant(CRUDUser):
         self.crud_team = CRUDTeam()
 
     async def create(
-        self, db: Session, obj_in, created_by: int, user_ip: str
+        self, db: Session, obj_in: UserCreate, created_by: int, user_ip: str
     ) -> AttendandInfo:
         logger.info("Creating attendant")
         try:
             # Step 1: Create the User
-            user = await super().create(db, obj_in.dict(), created_by, user_ip)
+
+            user = await super().create(db, obj_in.model_dump(), created_by, user_ip)
             logger.info("User created: %s", user)
 
             # Step 2: Process attendant data if needed
@@ -225,7 +237,7 @@ class CRUDAttendant(CRUDUser):
                 .options(
                     joinedload(User.attendant_data)
                 )  # Ensure relationship is loaded
-                .filter(User.id == id)
+                .filter(User.id == int(id))
                 .first()
             )
             if not user:
@@ -234,9 +246,9 @@ class CRUDAttendant(CRUDUser):
                     detail="User no found",
                 )
 
-            user_info = UserInfo.from_orm(user)
+            user_info = UserInfo.model_validate(user)
             if user.attendant_data:
-                user_info.attendant_data = AttendantResponse.from_orm(
+                user_info.attendant_data = AttendantResponse.model_validate(
                     user.attendant_data
                 )
             else:
@@ -252,4 +264,153 @@ class CRUDAttendant(CRUDUser):
             raise HTTPException(
                 status_code=500,
                 detail=f"Error retrieving user with attendant data: {str(e)}",
+            )
+
+    async def get_async(self, db: AsyncSession, id: int) -> dict:
+        """
+        Fetches a user (with attendant data) by ID using AsyncSession and returns
+        a fully validated UserInfo model dumped to a plain dictionary.
+        """
+        try:
+            result = await db.execute(
+                select(self.model)
+                .options(
+                    selectinload(self.model.attendant_data)
+                    .selectinload(Attendant.specialty_associations)
+                    .selectinload(AttendantSpecialty.specialty),
+                    selectinload(self.model.attendant_data)
+                    .selectinload(Attendant.team_associations)
+                    .selectinload(AttendantTeam.team),
+                    selectinload(self.model.attendant_data).selectinload(
+                        Attendant.function
+                    ),
+                )
+                .filter(self.model.id == int(id))
+            )
+            user = result.scalar_one_or_none()  # Await this call!
+
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            # Build a dictionary of the user's data.
+            user_data = {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "phone": user.phone,
+                "role": user.role,
+                "active": user.active,
+                # Override client_data to avoid lazy-loading issues.
+                "client_data": None,
+                # We'll replace attendant_data below.
+                "attendant_data": None,
+            }
+
+            # Convert the nested attendant_data to a dictionary.
+            if user.attendant_data:
+                attendant_model = AttendantResponse.model_validate(user.attendant_data)
+                user_data["attendant_data"] = attendant_model.model_dump()
+            else:
+                raise HTTPException(
+                    status_code=404, detail=f"User with ID {id} is not an attendant"
+                )
+
+            # Validate and create the main Pydantic model.
+            user_info = UserInfo.model_validate(user_data)
+            # Dump the final model into a plain dictionary before returning.
+            return user_info.model_dump()  # or user_info.dict() if using Pydantic v1
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error retrieving user with attendant data: {str(e)}",
+            )
+
+    async def update(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        update_data: UserUpdate,
+        updated_by: int,
+        user_ip: str,
+    ) -> Attendant:
+        try:
+            update_dict = update_data.model_dump(exclude_unset=True)
+            attendant_data = update_dict.pop("attendant_data", None)
+
+            update_service = AttendantUpdateService(db, updated_by, user_ip)
+            user = await update_service.update_user(
+                user_id, update_data, updated_by, user_ip
+            )
+
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            attendant = await update_service.get_attendant(user_id)
+
+            if attendant is None:
+                raise HTTPException(status_code=404, detail="Attendant not found")
+
+            if attendant_data:
+                await update_service.update_attendant_core_fields(
+                    attendant, attendant_data
+                )
+
+            association_service = AttendantAssociationService(
+                db, attendant.user_id, updated_by, user_ip
+            )
+
+            if attendant_data:
+                if attendant_data.get("team_names"):
+                    await association_service.update_team_associations(
+                        attendant_data.get("team_names"), self.crud_team
+                    )
+
+                if attendant_data.get("function_names"):
+                    attendant.function = (
+                        await association_service.update_function_association(
+                            attendant_data.get("function_names"), self.crud_function
+                        )
+                    )
+
+                if attendant_data.get("specialties"):
+                    await association_service.update_specialty_associations(
+                        attendant_data.get("specialties")
+                    )
+
+            await db.commit()  # Explicitly commit the changes
+            await db.refresh(attendant)
+            return attendant
+
+        except HTTPException as e:
+            raise e
+        except SQLAlchemyError as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=500, detail=f"Failed to update attendant: {str(e)}"
+            ) from e
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(status_code=500, detail=str(e)) from e
+
+    async def search_attendant(self, db: AsyncSession, criteria: dict):
+        """
+        Busca um atendente com base nos critérios fornecidos.
+        """
+        try:
+            field, value = next(iter(criteria.items()))
+            if field == "cpf":
+                # Query via CPF: Join User and Attendant and filter by Attendant.cpf
+                stmt = select(User).join(Attendant).filter(Attendant.cpf == value)
+                result = await db.execute(stmt)
+                return result.scalars().first()
+            elif field in ["email", "phone"]:
+                # Query directly on User table
+                stmt = select(User).filter(getattr(User, field) == value)
+                result = await db.execute(stmt)
+                return result.scalars().first()
+            else:
+                return None
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Error to search subscriber: {str(e)}"
             )

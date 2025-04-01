@@ -1,0 +1,25 @@
+[core]
+    fileMode = false
+    preloadindex = true
+    fsmonitor = true
+    untrackedcache = true
+
+[gc]
+    auto = 256
+    autoDetach = true
+
+[pack]
+    windowMemory = 100m
+    packSizeLimit = 100m
+    threads = 0
+
+[status]
+    showUntrackedFiles = no
+
+[commit]
+    gpgsign = false
+    verbose = false
+
+[push]
+    default = simple
+    autoSetupRemote = true 
