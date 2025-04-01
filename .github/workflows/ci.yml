@@ -27,7 +27,7 @@ jobs:
       - name: Set environment variables and Install Dependencies
         env:
           DATABASE_URL_SYNC: "sqlite:///./test.db"
-          DATABASE_URL_ASYNC: "sqlite:///./test.db"
+          DATABASE_URL_ASYNC: "sqlite+aiosqlite:///./test.db"  # Note the +aiosqlite
           MONGO_URI: "mongodb://localhost:27017"
           MONGO_DB: "elderly_care"
         run: |
@@ -51,7 +51,7 @@ jobs:
       - name: Run Tests
         env:
           DATABASE_URL_SYNC: "sqlite:///./test.db"
-          DATABASE_URL_ASYNC: "sqlite:///./test.db"
+          DATABASE_URL_ASYNC: "sqlite+aiosqlite:///./test.db"  # Note the +aiosqlite
           MONGO_URI: "mongodb://localhost:27017"
           MONGO_DB: "elderly_care"
         run: |
