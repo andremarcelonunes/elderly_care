@@ -181,8 +181,7 @@ class CRUDSpecializedUser:
         except Exception as e:
             db.rollback()  # Rollback the transaction in case of error
             raise HTTPException(
-                status_code=500,
-                detail=f"Erro inesperado: {str(e)}"
+                status_code=500, detail=f"Erro inesperado: {str(e)}"
             ) from e
         finally:
             db.close()  # Ensure the session is closed
@@ -524,7 +523,7 @@ class CRUDContact:
             db, client_id, contact_id
         )
         if deleted_count == 0:
-           raise ValueError("Association not found")
+            raise ValueError("Association not found")
 
         # Delete the contact record if it is now orphaned.
         await crud_contact.delete_contact_if_orphan(db, contact_id=contact_id)
