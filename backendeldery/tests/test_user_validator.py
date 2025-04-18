@@ -19,6 +19,7 @@ def user_data():
         name="John Doe",
         email="john.doe@example.com",
         phone="+123456789",
+        receipt_type=1,
         role="subscriber",
         password="Strong@123",
         active=True,
@@ -549,9 +550,7 @@ def test_rejects_when_phone_belongs_to_existing_user_with_different_cpf(
             if query_side_effect.client_count == 1:
                 # Query com join: retorna None para evitar o erro "The client already exists"
                 join_query_mock = mocker.Mock()
-                join_query_mock.join.return_value.filter.return_value.first.return_value = (
-                    None
-                )
+                join_query_mock.join.return_value.filter.return_value.first.return_value = None
                 return join_query_mock
             elif query_side_effect.client_count == 2:
                 # Query para obter Client pelo user_id

@@ -6,9 +6,9 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from backendeldery.crud.users import CRUDUser, CRUDClient
+from backendeldery.crud.users import CRUDClient, CRUDUser
 from backendeldery.models import User  # Ensure this import is correct
-from backendeldery.schemas import UserCreate, UserUpdate, SubscriberCreate
+from backendeldery.schemas import SubscriberCreate, UserCreate, UserUpdate
 
 
 @pytest.fixture
@@ -22,6 +22,7 @@ def user_data():
         name="Jane Doe",
         email="jane.doe@example.com",
         phone="+987654321",
+        receipt_type=1,
         role="subscriber",
         password="Strong@123",
         active=True,

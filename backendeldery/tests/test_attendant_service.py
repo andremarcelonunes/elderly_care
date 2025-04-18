@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from backendeldery.crud.attendant import CRUDAttendant
-from backendeldery.schemas import UserCreate, AttendantCreate
+from backendeldery.schemas import AttendantCreate, UserCreate
 from backendeldery.services.attendants import AttendantService
 from backendeldery.validators.attendant_validator import AttendantValidator
 from backendeldery.validators.user_validator import UserValidator
@@ -25,6 +25,7 @@ def user_data():
         name="John Doe",
         email="john.doe@example.com",
         phone="+123456789",
+        receipt_type=1,
         role="attendant",
         password="Strong@123",
         active=True,

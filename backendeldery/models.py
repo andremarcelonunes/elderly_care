@@ -1,20 +1,20 @@
 from sqlalchemy import (
-    Column,
-    Integer,
-    Table,
-    String,
-    ForeignKey,
     Boolean,
-    Text,
-    Enum,
+    Column,
     Date,
     DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Text,
     Time,
     func,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -56,6 +56,7 @@ client_contact_association = Table(
         ForeignKey("elderly_care.users.id", ondelete="CASCADE"),
         primary_key=True,
     ),
+    Column("type_contact", String(50), nullable=True),
     Column("created_at", DateTime, default=func.now(), nullable=False),
     Column(
         "updated_at", DateTime, default=func.now(), onupdate=func.now(), nullable=False
@@ -74,6 +75,7 @@ class User(Base):
     name = Column(String(200), nullable=False)
     email = Column(String(150), unique=True, nullable=True)
     phone = Column(String(15), unique=True, nullable=False)
+    receipt_type = Column(Integer, nullable=True)
     role = Column(String(50), nullable=False)
     active = Column(Boolean, default=False)
     password_hash = Column(String(128), nullable=True)

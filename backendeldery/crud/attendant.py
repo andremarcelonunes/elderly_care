@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -9,17 +8,17 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backendeldery.models import (
     Attendant,
-    Specialty,
     AttendantSpecialty,
     AttendantTeam,
+    Specialty,
     User,
 )
 from backendeldery.schemas import (
-    AttendantResponse,
     AttendandInfo,
+    AttendantResponse,
+    UserCreate,
     UserInfo,
     UserUpdate,
-    UserCreate,
 )
 from backendeldery.services.attendantAssociationService import (
     AttendantAssociationService,
@@ -27,6 +26,7 @@ from backendeldery.services.attendantAssociationService import (
 from backendeldery.services.attendantUpdateService import (
     AttendantUpdateService,
 )
+
 from .function import CRUDFunction
 from .team import CRUDTeam
 from .users import CRUDUser
@@ -227,7 +227,7 @@ class CRUDAttendant(CRUDUser):
             return user_info
         return AttendandInfo.model_validate(user)
 
-    async def get(self, db: Session, id: int) -> Optional[UserInfo]:
+    async def get(self, db: Session, id: int) -> UserInfo | None:
         """
         Fetches an attendant by ID with user details if they exist.
         """
@@ -298,6 +298,7 @@ class CRUDAttendant(CRUDUser):
                 "name": user.name,
                 "email": user.email,
                 "phone": user.phone,
+                "receipt_type": user.receipt_type,
                 "role": user.role,
                 "active": user.active,
                 # Override client_data to avoid lazy-loading issues.

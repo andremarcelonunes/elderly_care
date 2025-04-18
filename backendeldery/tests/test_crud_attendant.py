@@ -11,18 +11,18 @@ from sqlalchemy.orm import Session
 from backendeldery import CRUDUser
 from backendeldery.crud.attendant import CRUDAttendant
 from backendeldery.models import (
-    User,
     Attendant,
     Function,
-    Team,
     Specialty,
+    Team,
+    User,
 )
 from backendeldery.schemas import (
-    UserCreate,
     AttendantCreate,
     AttendantResponse,
-    UserInfo,
     AttendantUpdate,
+    UserCreate,
+    UserInfo,
     UserUpdate,
 )
 from backendeldery.services.attendantAssociationService import (
@@ -91,6 +91,7 @@ def user_data():
         name="John Doe",
         email="john.doe@example.com",
         phone="+123456789",
+        receipt_type=1,
         role="attendant",
         active=True,
         password="Strong@123",
@@ -139,6 +140,7 @@ async def test_create_attendant_success(db_session, user_data, mocker):
         id=1,
         email=user_data.email,
         phone=user_data.phone,
+        receipt_type=1,
         name=user_data.name,
         role=user_data.role,
     )
@@ -243,6 +245,7 @@ async def test_create_attendant_new_specialty(db_session, user_data, mocker):
         id=1,
         email=user_data.email,
         phone=user_data.phone,
+        receipt_type=1,
         name=user_data.name,
         role=user_data.role,
     )
@@ -296,6 +299,7 @@ async def test_create_attendant_with_new_team(db_session, user_data, mocker):
         id=1,
         email=user_data.email,
         phone=user_data.phone,
+        receipt_type=1,
         name=user_data.name,
         role=user_data.role,
     )
@@ -353,6 +357,7 @@ async def test_create_attendant_with_new_function(async_db_session, user_data, m
         id=1,
         email=user_data.email,
         phone=user_data.phone,
+        receipt_type=1,
         name=user_data.name,
         role=user_data.role,
     )
@@ -431,6 +436,7 @@ async def test_get_attendant_success():
         name="John Doe",
         email="john@example.com",
         phone="+123456789",
+        receipt_type=1,
         role="attendant",
         active=True,
         attendant_data=fake_attendant,  # Use the correct attribute name
@@ -452,6 +458,7 @@ async def test_get_attendant_success():
     assert result.name == fake_user.name
     assert result.email == fake_user.email
     assert result.phone == fake_user.phone
+    assert result.receipt_type == fake_user.receipt_type
     assert result.role == fake_user.role
     assert result.active == fake_user.active
 
@@ -494,6 +501,7 @@ async def test_get_attendant_no_attendant_data():
         name="Jane Doe",
         email="jane@example.com",
         phone="+987654321",
+        receipt_type=1,
         role="attendant",
         active=True,
         attendant_data=None,  # Ensuring this matches the expected attribute name.
@@ -523,6 +531,7 @@ async def test_get_async_retrieves_user_with_attendant_data(mocker):
     mock_user.name = "Test User"
     mock_user.email = "test@example.com"
     mock_user.phone = "123456789"
+    mock_user.receipt_type = 1
     mock_user.role = "attendant"
     mock_user.active = True
     mock_user.client_data = None
@@ -570,6 +579,7 @@ async def test_get_async_retrieves_user_with_attendant_data(mocker):
         "name": "Test User",
         "email": "test@example.com",
         "phone": "123456789",
+        "receipt_type": 1,
         "role": "attendant",
         "active": True,
         "client_data": None,
@@ -743,6 +753,7 @@ async def test_create_attendant_type_error(mocker):
         name="Test Attendant",
         email="test@example.com",
         phone="+123456789",
+        receipt_type=1,
         role="attendant",
         password="password123",
         attendant_data=valid_attendant_data,
@@ -1370,8 +1381,8 @@ async def test_update_handles_user_not_found(mocker):
 
 def test_user_without_attendant_returns_basic_info(mocker):
     # Arrange
-    from backendeldery.schemas import AttendandInfo
     from backendeldery.models import User
+    from backendeldery.schemas import AttendandInfo
 
     # Create a mock user without attendant
     mock_user = mocker.Mock(spec=User)
@@ -1379,6 +1390,7 @@ def test_user_without_attendant_returns_basic_info(mocker):
     mock_user.name = "Jane Doe"
     mock_user.email = "jane@example.com"
     mock_user.phone = "987654321"
+    mock_user.receipt_type = 1
     mock_user.role = "user"
     mock_user.active = True
     mock_user.attendant = None
@@ -1507,6 +1519,7 @@ async def test_create_attendant_type_error(mocker):
         name="Test Attendant",
         email="test@example.com",
         phone="+123456789",
+        receipt_type=1,
         role="attendant",
         password="password123",
         attendant_data=valid_attendant_data,

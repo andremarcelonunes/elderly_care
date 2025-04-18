@@ -1,12 +1,12 @@
 # test_user_service.py
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from backendeldery.crud.users import crud_specialized_user, crud_assisted, crud_contact
-from backendeldery.schemas import UserCreate, UserInfo, SubscriberInfo, UserUpdate
+from backendeldery.crud.users import crud_assisted, crud_contact, crud_specialized_user
+from backendeldery.schemas import SubscriberInfo, UserCreate, UserInfo, UserUpdate
 from backendeldery.services.users import UserService
 from backendeldery.validators.user_validator import UserValidator
 
@@ -22,6 +22,7 @@ def user_data():
         name="John Doe",
         email="john.doe@example.com",
         phone="+123456789",
+        receipt_type=1,
         role="subscriber",
         password="Strong@123",
         active=True,
@@ -42,6 +43,7 @@ def user_update_data():
     return UserUpdate(
         email="john.doe@example.com",
         phone="+123456789",
+        receipt_type=1,
         active=True,
         client_data={
             "address": "123 Main St",
@@ -147,6 +149,7 @@ async def test_get_subscriber_by_id_success(db_session, mocker):
         name="John Doe",
         email="john.doe@example.com",
         phone="+123456789",
+        receipt_type=1,
         role="subscriber",
         active=True,
         client_data=SubscriberInfo(
@@ -211,6 +214,7 @@ async def test_update_subscriber_success(db_session, user_update_data):
         name="John Doe",
         email="john.doe@example.com",
         phone="+123456789",
+        receipt_type=1,
         role="subscriber",
         active=True,
         client_data=SubscriberInfo(
@@ -329,7 +333,7 @@ async def test_update_subscriber_user_not_found_after_update(
         with patch.object(
             crud_specialized_user,
             "update_user_and_client",
-            return_value={"message": "User and Client " "are updated!"},
+            return_value={"message": "User and Client are updated!"},
         ):
             with patch.object(
                 crud_specialized_user, "get_user_with_client", return_value=None
@@ -485,6 +489,7 @@ async def test_create_contact_association_client_own_contact(db_session, mocker)
             db_session,
             client_id=1,
             user_contact_id=1,
+            type_contact="uber",
             created_by=1,
             user_ip="127.0.0.1",
         )
@@ -507,6 +512,7 @@ async def test_create_contact_association_already_associated(db_session, mocker)
             db_session,
             client_id=1,
             user_contact_id=2,
+            type_contact="uber",
             created_by=1,
             user_ip="127.0.0.1",
         )
@@ -530,6 +536,7 @@ async def test_create_contact_association_unexpected_error(db_session, mocker):
             db_session,
             client_id=1,
             user_contact_id=2,
+            type_contact="uber",
             created_by=1,
             user_ip="127.0.0.1",
         )
@@ -727,6 +734,11 @@ async def test_create_contact_association_success(db_session, mocker):
     )
 
     result = await UserService.create_contact_association(
-        db_session, client_id=1, user_contact_id=2, created_by=1, user_ip="127.0.0.1"
+        db_session,
+        client_id=1,
+        user_contact_id=2,
+        type_contact="uber",
+        created_by=1,
+        user_ip="127.0.0.1",
     )
     assert result == {"message": "Association created"}

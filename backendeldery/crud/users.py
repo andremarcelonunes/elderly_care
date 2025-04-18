@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy import select, update
@@ -55,11 +54,12 @@ class CRUDUser(CRUDBase[User, UserCreate]):
         user_data["user_ip"] = user_ip
         db_obj = crud_user.model(**user_data)
         db.add(db_obj)
-        db.flush()  # Usa `flush` ao invés de `commit` para preparar a transação sem encerrar
+        # Usa `flush` ao invés de `commit` para preparar a transação sem encerrar
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 
-    async def get(self, db: Session, id: int) -> Optional[dict]:
+    async def get(self, db: Session, id: int) -> dict | None:
         """Fetches a user and attaches related data
         (client or attendant) dynamically."""
         user = db.query(self.model).filter(self.model.id == id).first()
@@ -88,7 +88,6 @@ class CRUDUser(CRUDBase[User, UserCreate]):
         updated_by: int,
         user_ip: str,
     ) -> User:
-
         # Ensure update_data is a Pydantic model.
         if not hasattr(update_data, "model_dump"):
             update_data = UserUpdate(**update_data)
@@ -181,7 +180,10 @@ class CRUDSpecializedUser:
 
         except Exception as e:
             db.rollback()  # Rollback the transaction in case of error
-            raise HTTPException(status_code=500, detail=f"Erro inesperado: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro inesperado: {str(e)}"
+            ) from e
         finally:
             db.close()  # Ensure the session is closed
 
@@ -399,6 +401,7 @@ class CRUDContact:
         db: Session,
         client_id: int,
         user_contact_id: int,
+        type_contact: str,
         created_by: int,
         user_ip: str,
     ):
@@ -409,6 +412,7 @@ class CRUDContact:
             association = client_contact_association.insert().values(
                 user_client_id=client_id,  # The client's user_id
                 user_contact_id=user_contact_id,  # The contact's user id
+                type_contact=type_contact,
                 created_by=created_by,
                 updated_by=None,
                 user_ip=user_ip,
@@ -520,7 +524,7 @@ class CRUDContact:
             db, client_id, contact_id
         )
         if deleted_count == 0:
-            raise ValueError("Association not found")
+           raise ValueError("Association not found")
 
         # Delete the contact record if it is now orphaned.
         await crud_contact.delete_contact_if_orphan(db, contact_id=contact_id)

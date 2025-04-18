@@ -1,13 +1,15 @@
 from datetime import date
 from unittest.mock import Mock
+
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy.orm import Session
-from backendeldery.crud.users import CRUDSpecializedUser
-from backendeldery.models import User, Client
-from backendeldery.schemas import UserCreate, UserUpdate, UserInfo
 from sqlalchemy.exc import NoResultFound
+from sqlalchemy.orm import Session
+
+from backendeldery.crud.users import CRUDSpecializedUser
+from backendeldery.models import Client, User
+from backendeldery.schemas import UserCreate, UserInfo, UserUpdate
 
 
 @pytest.fixture
@@ -25,9 +27,10 @@ def user_data():
         name="John Doe",
         email="john.doe@example.com",
         phone="+123456789",
-        role="subscriber",
+        receipt_type=1,
         password="Strong@123",
         active=True,
+        role="assisted",  # Add the required role field
         client_data={
             "cpf": "123.456.789-00",
             "birthday": "1990-01-01",
@@ -45,6 +48,7 @@ def user_update_data():
     return UserUpdate(
         email="updated.email@example.com",
         phone="+123456789",
+        receipt_type=1,
         active=True,
         client_data={
             "address": "456 New St",
@@ -64,6 +68,7 @@ async def test_create_subscriber_success(db_session, mocker, user_data):
         name="John Doe",
         email="john.doe@example.com",
         phone="+123456789",
+        receipt_type=1,
         role="subscriber",
         active=True,
         created_at="2025-01-01T12:00:00",
@@ -115,6 +120,7 @@ async def test_create_subscriber_success(db_session, mocker, user_data):
     assert result.name == "John Doe"
     assert result.email == "john.doe@example.com"
     assert result.phone == "+123456789"
+    assert result.receipt_type == 1
     assert result.role == "subscriber"
     assert result.active is True
 
@@ -140,12 +146,16 @@ async def test_create_subscriber_error(db_session, mocker, user_data):
 
     crud_specialized_user = CRUDSpecializedUser()
     with pytest.raises(HTTPException) as excinfo:
-
         await crud_specialized_user.create_subscriber(
-            db=db_session, user_data= user_data.model_dump(), created_by=1, user_ip="127.0.0.1"
+            db=db_session,
+            user_data=user_data.model_dump(),
+            created_by=1,
+            user_ip="127.0.0.1",
         )
     assert excinfo.value.status_code == 500
-   # assert excinfo.value.detail == "Erro inesperado: Unexpected error"
+
+
+# assert excinfo.value.detail == "Erro inesperado: Unexpected error"
 
 
 @pytest.mark.asyncio
@@ -226,6 +236,7 @@ async def test_search_subscriber_user_not_found(db_session, mocker):
 
     assert result is None, "Expected no user to be found, but got a result"
 
+
 @pytest.mark.asyncio
 async def test_get_user_with_client_success(db_session, mocker):
     # Mock User and Client objects with proper attributes
@@ -234,6 +245,7 @@ async def test_get_user_with_client_success(db_session, mocker):
         name="John Doe",
         email="john.doe@example.com",
         phone="+123456789",
+        receipt_type=1,
         role="subscriber",
         active=True,
     )
@@ -361,6 +373,7 @@ async def test_update_user_and_client_no_changes(db_session, user_update_data):
 
     user_update_data.email = None
     user_update_data.phone = None
+    user_update_data.receipt_type = None
     user_update_data.active = None
     user_update_data.client_data = None
 

@@ -25,6 +25,7 @@ async def register_attendant(
                 "name": "John Doe",
                 "email": "john.doe@example.com",
                 "phone": "+123456789",
+                "receipt_type": 1,
                 "role": "attendant",
                 "password": "Strong@123",
                 "active": True,
@@ -97,6 +98,7 @@ async def update_attendant(
         example={
             "email": "new.email@example.com",
             "phone": "+123456789",
+            "receipt_type": 2,
             "active": True,
             "attendant_data": {
                 "address": "456 New St",

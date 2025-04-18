@@ -1,11 +1,12 @@
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
+
 from backendeldery.schemas import (
-    UserUpdate,
+    AttendantCreate,
     ClientUpdate,
     SubscriberCreate,
     UserCreate,
-    AttendantCreate,
+    UserUpdate,
 )
 
 
@@ -24,6 +25,7 @@ def test_check_extra_fields_user():
     invalid_data = {
         "email": "test@example.com",
         "phone": "+123456789",
+        "receipt_type": 1,
         "active": True,
         "role": "Contact",
     }
@@ -71,6 +73,7 @@ def test_user_create_subscriber_missing_client_data():
             name="John Doe",
             role="subscriber",
             phone="+123456789",
+            receipt_type=1,
             email="john.doe@example.com",
             password="password123",
         )
@@ -83,6 +86,7 @@ def test_user_create_subscriber_missing_email():
             name="John Doe",
             role="subscriber",
             phone="+123456789",
+            receipt_type=1,
             password="password123",
             client_data=SubscriberCreate(
                 cpf="12345678900",
@@ -103,6 +107,7 @@ def test_user_create_subscriber_missing_password():
             name="John Doe",
             role="subscriber",
             phone="+123456789",
+            receipt_type=1,
             email="john.doe@example.com",
             client_data=SubscriberCreate(
                 cpf="12345678900",
@@ -123,6 +128,7 @@ def test_user_create_invalid_phone():
             name="John Doe",
             role="subscriber",
             phone="invalid_phone",
+            receipt_type=1,
             email="john.doe@example.com",
             password="password123",
             client_data=SubscriberCreate(
@@ -144,6 +150,7 @@ def test_user_create_attendant_missing_attendant_data():
             name="John Doe",
             role="attendant",
             phone="+123456789",
+            receipt_type=1,
             email="john.doe@example.com",
             password="password123",
         )
@@ -156,6 +163,7 @@ def test_user_create_attendant_missing_email():
             name="John Doe",
             role="attendant",
             phone="+123456789",
+            receipt_type=1,
             password="password123",
             attendant_data=AttendantCreate(
                 cpf="12345678900",
@@ -180,6 +188,7 @@ def test_user_create_attendant_missing_password():
             name="John Doe",
             role="attendant",
             phone="+123456789",
+            receipt_type=1,
             email="john.doe@example.com",
             attendant_data=AttendantCreate(
                 cpf="12345678900",

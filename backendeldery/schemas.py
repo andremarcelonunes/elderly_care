@@ -19,6 +19,7 @@ class UserCreate(BaseModel):
     name: Annotated[str, StringConstraints(max_length=200)]
     email: EmailStr = Field(default=None, mode="strict")  # Optional email field
     phone: str = Field(..., pattern=r"^\+?[1-9]\d{1,14}$")
+    receipt_type: Literal[1, 2, 3]
     role: Literal["contact", "subscriber", "assisted", "attendant"]
     active: bool | None = True
     password: str | None = Field(None, min_length=8)  # Now optional.
@@ -49,6 +50,7 @@ class UserCreate(BaseModel):
 
 class SubscriberCreate(BaseModel):
     cpf: CPFValidator
+    team_id: int | None = None
     address: Annotated[str, StringConstraints(max_length=200)]
     neighborhood: Annotated[str, StringConstraints(max_length=100)]
     city: Annotated[str, StringConstraints(max_length=100)]
@@ -144,6 +146,7 @@ class UserInfo(BaseModel):
     name: str
     email: EmailStr | None = None  # Optional by default.
     phone: str
+    receipt_type: int | None = None
     role: str
     active: bool | None = True
     client_data: SubscriberInfo | None = None
@@ -156,6 +159,7 @@ class AttendandInfo(BaseModel):
     name: str
     email: EmailStr | None = None  # Optional by default.
     phone: str
+    receipt_type: int | None = None
     role: str
     active: bool | None = True
     attendant_data: AttendantResponse | None = None
@@ -208,6 +212,7 @@ class AttendantUpdate(BaseModel):
 class UserUpdate(BaseModel):
     email: EmailStr | None = Field(None, mode="strict")
     phone: str | None = Field(None, pattern=r"^\+?[1-9]\d{1,14}$")  # Validação do phone
+    receipt_type: int | None = None
     active: bool | None = None
     client_data: ClientUpdate | None = None
     attendant_data: AttendantUpdate | None = None
@@ -227,6 +232,7 @@ class UserResponse(BaseModel):
     name: str
     email: str | None = None
     phone: str
+    receipt_type: int
     role: str
     active: bool
     client_data: dict | None = None
@@ -244,6 +250,7 @@ class AssistedUserResponse(BaseModel):
     name: str
     email: str | None = None
     phone: str
+    receipt_type: int
     role: str
     active: bool
     client_data: dict | None = None
@@ -286,6 +293,7 @@ class AttendantTimeResponse(BaseModel):
     name: str
     email: str | None = None
     phone: str
+    receipt_type: int | None = None
     role: str
     active: bool
     attendant_data: AttendantData | None = None

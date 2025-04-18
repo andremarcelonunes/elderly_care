@@ -3,8 +3,8 @@ import logging
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from backendeldery.crud.users import crud_specialized_user, crud_assisted, crud_contact
-from backendeldery.schemas import UserCreate, UserUpdate, UserResponse
+from backendeldery.crud.users import crud_assisted, crud_contact, crud_specialized_user
+from backendeldery.schemas import UserCreate, UserResponse, UserUpdate
 from backendeldery.validators.user_validator import UserValidator
 
 logger = logging.getLogger("backendeldery")
@@ -67,7 +67,7 @@ class UserService:
             if user.attendant_data:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"This user is not contact, subscriber ou assisted",
+                    detail="This user is not contact, subscriber ou assisted",
                 )
 
             client_data = (
@@ -78,6 +78,7 @@ class UserService:
                 name=user.name,
                 email=user.email,
                 phone=user.phone,
+                receipt_type=user.receipt_type,
                 role=user.role,
                 active=user.active,
                 client_data=client_data,
@@ -117,6 +118,7 @@ class UserService:
                 name=updated_user.name,
                 email=updated_user.email,
                 phone=updated_user.phone,
+                receipt_type=updated_user.receipt_type,
                 role=updated_user.role,
                 active=updated_user.active,
                 client_data=updated_user.client_data.dict(),  # Convert to dictionary
@@ -213,6 +215,7 @@ class UserService:
         db: Session,
         client_id: int,
         user_contact_id: int,
+        type_contact: str,
         created_by: int,
         user_ip: str,
     ):
@@ -225,6 +228,7 @@ class UserService:
                 db=db,
                 client_id=client_id,
                 user_contact_id=user_contact_id,
+                type_contact=type_contact,
                 created_by=created_by,
                 user_ip=user_ip,
             )
