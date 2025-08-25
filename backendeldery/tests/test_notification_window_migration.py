@@ -186,8 +186,10 @@ class TestNotificationWindowMigration:
         import os
         
         # Check migration file exists
-        migration_file = "/Users/andrenunes/PycharmProjects/backendEldery/alembic/versions/mr662ksddt4s_add_notification_window_fields.py"
-        assert os.path.exists(migration_file)
+        import pathlib
+        project_root = pathlib.Path(__file__).parent.parent.parent
+        migration_file = project_root / "alembic" / "versions" / "mr662ksddt4s_add_notification_window_fields.py"
+        assert migration_file.exists()
         
         # Read migration file content
         with open(migration_file, 'r') as f:
