@@ -1,0 +1,16 @@
+inciar o serviç
+
+
+atualizar banco de dados via alembic
+-alembic upgrade head
+# criar um novo arquivo de migração
+-alembic revision --autogenerate -m "mensagem"
+# criar um novo arquivo de migração
+-alembic revision -m "mensagem"
+alembic revision --autogenerate -m "alteracao na tabela de relacionamento do contato"
+
+testes unitários
+ pytest -s -vv --alluredir=allure-results --cov=backendeldery --cov-report=term-missing --cov-branch --cov-config=.coveragerc -v backendeldery/tests/
+00659832704
+
+senha do certificado AMCN tech 13111971

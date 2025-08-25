@@ -79,6 +79,12 @@ class User(Base):
     role = Column(String(50), nullable=False)
     active = Column(Boolean, default=False)
     password_hash = Column(String(128), nullable=True)
+
+    # Notification window fields
+    notification_start_time = Column(String(5), nullable=True, default='08:00')
+    notification_end_time = Column(String(5), nullable=True, default='22:00')
+    paused_until = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by = Column(Integer, nullable=False)

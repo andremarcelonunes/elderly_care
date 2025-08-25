@@ -14,7 +14,7 @@ from backendeldery.models import (
     User,
 )
 from backendeldery.schemas import (
-    AttendandInfo,
+    AttendantInfo,
     AttendantResponse,
     UserCreate,
     UserInfo,
@@ -49,7 +49,7 @@ class CRUDAttendant(CRUDUser):
 
     async def create(
         self, db: Session, obj_in: UserCreate, created_by: int, user_ip: str
-    ) -> AttendandInfo:
+    ) -> AttendantInfo:
         logger.info("Creating attendant")
         try:
             # Step 1: Create the User
@@ -212,10 +212,10 @@ class CRUDAttendant(CRUDUser):
         db.commit()
         db.refresh(user)
 
-    def _build_response(self, user) -> AttendandInfo:
+    def _build_response(self, user) -> AttendantInfo:
         if user.attendant:
             attendant_info = AttendantResponse.model_validate(user.attendant)
-            user_info = AttendandInfo.model_validate(user)
+            user_info = AttendantInfo.model_validate(user)
             user_info.attendant_data = attendant_info
             user_info.attendant_data.team_names = [
                 team.team_name for team in user.attendant.teams
@@ -225,9 +225,9 @@ class CRUDAttendant(CRUDUser):
             )
             logger.info("Returning user_info: %s", user_info)
             return user_info
-        return AttendandInfo.model_validate(user)
+        return AttendantInfo.model_validate(user)
 
-    async def get(self, db: Session, id: int) -> UserInfo | None:
+    def get(self, db: Session, id: int) -> UserInfo | None:
         """
         Fetches an attendant by ID with user details if they exist.
         """
