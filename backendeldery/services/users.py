@@ -81,6 +81,9 @@ class UserService:
                 receipt_type=user.receipt_type,
                 role=user.role,
                 active=user.active,
+                notification_start_time=user.notification_start_time,
+                notification_end_time=user.notification_end_time,
+                paused_until=user.paused_until,
                 client_data=client_data,
             )
         except Exception as e:

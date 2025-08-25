@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from backendeldery.schemas import (
+    AttendantInfo,
     UserCreate,
     UserResponse,
     UserSearch,
@@ -70,7 +71,9 @@ async def register_attendant(
         )
 
 
-@router.get("/attendants/{attendant_id}")
+@router.get("/attendants/{attendant_id}", 
+           response_model=AttendantInfo,
+           response_model_exclude_none=True)
 async def get_attendant(
     attendant_id: int,
     db: Session = Depends(get_db),
@@ -137,6 +140,74 @@ async def update_attendant(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error on update Attendant: {str(e)}"
+        )
+
+
+@router.patch("/attendants/{user_id}", response_model=UserResponse)
+async def patch_attendant(
+    user_id: int,
+    user_update: UserUpdate = Body(
+        example={
+            "email": "new.email@example.com",
+            "phone": "+123456789",
+            "receipt_type": 2,
+            "active": True,
+            "attendant_data": {
+                "address": "456 New St",
+                "neighborhood": "Uptown",
+                "city": "New City",
+                "state": "NC",
+                "code_address": "67890",
+                "registro_conselho": "RJ-123456",
+                "nivel_experiencia": "senior",
+                "formacao": "Nursing",
+                "specialties": ["Pediatrics"],
+                "team_names": ["Team B"],
+                "function_names": "Nurse",
+            },
+        }
+    ),
+    db: AsyncSession = Depends(get_db_aync),
+    request: Request = None,
+    x_user_id: int = Header(...),
+):
+    """
+    Endpoint to partially update an existing Attendant.
+
+    This endpoint provides partial update functionality for attendants. Only the fields
+    provided in the request body will be updated, allowing for fine-grained control
+    over which attendant attributes are modified.
+
+    Parameters:
+        user_id (int): The identifier of the attendant to be updated.
+        user_update (UserUpdate): Object containing the fields to update.
+            Only the provided fields will be updated.
+        db (AsyncSession): Async database session dependency.
+        request (Request, optional): The request object, used to extract client IP.
+        x_user_id (int): The user ID from the request header, denoting who is performing
+          the update.
+
+    Returns:
+        UserResponse: The updated attendant data.
+
+    Raises:
+        HTTPException: If there is an error during the update process.
+    """
+    try:
+        client_ip = request.client.host if request else "unknown"
+        updated_user = await AttendantService.update(
+            db=db,
+            user_id=user_id,
+            user_update=user_update,
+            user_ip=client_ip,
+            updated_by=x_user_id,
+        )
+        return updated_user
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error on partial update Attendant: {str(e)}"
         )
 
 

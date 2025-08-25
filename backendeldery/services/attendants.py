@@ -42,7 +42,7 @@ class AttendantService:
         Fetches an attendant by ID with user details if they exist.
         """
         try:
-            return await CRUDAttendant().get(db, id)
+            return CRUDAttendant().get(db, id)
         except HTTPException as e:
             raise e
         except Exception as e:

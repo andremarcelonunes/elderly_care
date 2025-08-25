@@ -409,8 +409,7 @@ async def test_create_attendant_with_new_function(async_db_session, user_data, m
     assert refresh_called_with_dummy_user
 
 
-@pytest.mark.asyncio
-async def test_get_attendant_success():
+def test_get_attendant_success():
     crud_attendant = CRUDAttendant()
 
     # Create a fake attendant ORM object with correct types.
@@ -449,7 +448,7 @@ async def test_get_attendant_success():
     )
 
     # Run the method
-    result = await crud_attendant.get(db=fake_db, id=1)
+    result = crud_attendant.get(db=fake_db, id=1)
 
     # Validate that result is not None
     assert result is not None
@@ -1382,7 +1381,7 @@ async def test_update_handles_user_not_found(mocker):
 def test_user_without_attendant_returns_basic_info(mocker):
     # Arrange
     from backendeldery.models import User
-    from backendeldery.schemas import AttendandInfo
+    from backendeldery.schemas import AttendantInfo
 
     # Create a mock user without attendant
     mock_user = mocker.Mock(spec=User)
@@ -1395,9 +1394,9 @@ def test_user_without_attendant_returns_basic_info(mocker):
     mock_user.active = True
     mock_user.attendant = None
 
-    # Patch the model_validate method on AttendandInfo so that it returns a fake schema instance.
-    mock_user_info = mocker.Mock(spec=AttendandInfo)
-    mocker.patch.object(AttendandInfo, "model_validate", return_value=mock_user_info)
+    # Patch the model_validate method on AttendantInfo so that it returns a fake schema instance.
+    mock_user_info = mocker.Mock(spec=AttendantInfo)
+    mocker.patch.object(AttendantInfo, "model_validate", return_value=mock_user_info)
 
     # Patch logger if necessary.
     mocker.patch("backendeldery.crud.attendant.logger")

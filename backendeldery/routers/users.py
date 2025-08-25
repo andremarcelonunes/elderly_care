@@ -268,6 +268,77 @@ async def update_user(
         ) from e
 
 
+@router.patch(
+    "/users/update/{user_id}",
+    response_model=UserResponse,
+    response_model_exclude_none=True,
+)
+async def patch_user(
+    user_id: int,
+    user_update: UserUpdate = Body(  # noqa: B008
+        example={
+            "email": "new.email@example.com",
+            "phone": "+123456789",
+            "receipt_type": 2,
+            "active": True,
+            "client_data": {
+                "team_id": 1,
+                "address": "456 New St",
+                "neighborhood": "Uptown",
+                "city": "New City",
+                "state": "NC",
+                "code_address": "67890",
+            },
+        }
+    ),
+    db: Session = Depends(get_db),  # noqa: B008
+    request: Request = None,
+    x_user_id: int = Header(...),
+):
+    """
+    Partially update an existing user with the given update data.
+
+    This endpoint provides partial update functionality for users. Only the fields
+    provided in the request body will be updated, allowing for fine-grained control
+    over which user attributes are modified.
+
+    Parameters:
+
+        user_id (int): The identifier of the user to be updated.
+        user_update (UserUpdate): Object containing the fields to update.
+            Only the provided fields will be updated.
+
+        db (Session): Database session dependency.
+        request (Request, optional): The request object, used to extract client IP.
+        x_user_id (int): The user ID from the request header, denoting who is performing
+          the update.
+
+    Returns:
+
+        UserResponse: The updated user data.
+
+    Raises:
+
+        HTTPException: If there is an error during the update process.
+    """
+    try:
+        client_ip = request.client.host if request else "unknown"
+        updated_user = await UserService.update_subscriber(
+            db=db,
+            user_id=user_id,
+            user_update=user_update,
+            user_ip=client_ip,
+            updated_by=x_user_id,
+        )
+        return updated_user
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error on partial update subscriber: {str(e)}"
+        ) from e
+
+
 @router.post("/users/associate/assisted/")
 async def register_assisted(
     assisted: AssistedCreate = Body(  # noqa: B008

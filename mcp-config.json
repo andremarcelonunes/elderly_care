@@ -1,0 +1,53 @@
+{
+  "mcpServers": {
+    "user-api": {
+      "command": "/Users/andrenunes/.nvm/versions/node/v20.17.0/bin/node",
+      "args": [
+        "/Users/andrenunes/go-realtime-event-system/mcp-user-api-server/server.js"
+      ],
+      "env": {
+        "API_BASE_URL": "http://localhost:8000",
+        "API_KEY": ""
+      }
+    },
+    "jira-local": {
+      "command": "/Users/andrenunes/.nvm/versions/node/v20.17.0/bin/node",
+      "args": [
+        "/Users/andrenunes/go-realtime-event-system/mcp-jira-server/server.js"
+      ],
+      "env": {
+        "JIRA_URL": "https://pedroviniciusfigueiracoelho.atlassian.net",
+        "JIRA_EMAIL": "andremarcelonunes@gmail.com",
+        "JIRA_API_TOKEN": "YOUR_JIRA_API_TOKEN_HERE"
+      }
+    },
+    "memory": {
+      "command": "/Users/andrenunes/.nvm/versions/node/v20.17.0/bin/npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "redis": {
+      "command": "/Users/andrenunes/.nvm/versions/node/v20.17.0/bin/node",
+      "args": [
+        "/Users/andrenunes/go-realtime-event-system/mcp-redis-server/server.js"
+      ],
+      "env": {
+        "REDIS_URL": "redis://localhost:6379",
+        "REDIS_PASSWORD": "",
+        "REDIS_DB": "0"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    },
+    "postgres": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "DATABASE_URI=postgresql://elderydb:teste123@localhost:5432/elderly_care",
+        "crystaldba/postgres-mcp",
+        "--access-mode=restricted"
+      ]
+    }
+  }
+}

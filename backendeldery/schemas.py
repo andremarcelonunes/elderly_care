@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from typing import Annotated, Literal, Optional
+import re
 
 from pydantic import (
     BaseModel,
@@ -8,10 +9,24 @@ from pydantic import (
     Field,
     StringConstraints,
     model_validator,
+    field_validator,
 )
 
 # from email_validator import validate_email, EmailNotValidError
 from backendeldery.validators.cpf_validator import CPFValidator
+
+
+def validate_time_format(value: str | None) -> str | None:
+    """Validate HH:MM time format (00:00-23:59)."""
+    if value is None:
+        return value
+    
+    # Enforce strict HH:MM format with exactly 2 digits for hours and minutes
+    pattern = r'^([0-1][0-9]|2[0-3]):[0-5][0-9]$'
+    if not re.match(pattern, value):
+        raise ValueError('Time must be in HH:MM format with two digits (00:00-23:59)')
+    
+    return value
 
 
 # noinspection PyMethodParameters
@@ -23,8 +38,22 @@ class UserCreate(BaseModel):
     role: Literal["contact", "subscriber", "assisted", "attendant"]
     active: bool | None = True
     password: str | None = Field(None, min_length=8)  # Now optional.
+    
+    # Notification window fields
+    notification_start_time: str | None = Field(default='08:00', 
+                                                description="Notification window start time (HH:MM)")
+    notification_end_time: str | None = Field(default='22:00',
+                                              description="Notification window end time (HH:MM)")
+    paused_until: datetime | None = Field(default=None,
+                                          description="Pause notifications until this datetime")
+    
     client_data: Optional["SubscriberCreate"] = None
     attendant_data: Optional["AttendantCreate"] = None
+    
+    @field_validator('notification_start_time', 'notification_end_time')
+    @classmethod
+    def validate_notification_times(cls, v):
+        return validate_time_format(v)
 
     @model_validator(mode="after")
     def validate_specialization(cls, model: "UserCreate") -> "UserCreate":
@@ -42,6 +71,12 @@ class UserCreate(BaseModel):
                 raise ValueError("email is required when role is 'attendant'.")
             if model.password is None:
                 raise ValueError("password is required when role is 'attendant'.")
+        
+        # Validate notification time window
+        if (model.notification_start_time and model.notification_end_time and 
+            model.notification_start_time >= model.notification_end_time):
+            raise ValueError("notification_start_time must be before notification_end_time")
+        
         # For roles "assisted" and "contact", email and password may be omitted.
         return model
 
@@ -149,12 +184,18 @@ class UserInfo(BaseModel):
     receipt_type: int | None = None
     role: str
     active: bool | None = True
+    
+    # Notification window fields
+    notification_start_time: str | None = None
+    notification_end_time: str | None = None
+    paused_until: datetime | None = None
+    
     client_data: SubscriberInfo | None = None
     attendant_data: AttendantResponse | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
-class AttendandInfo(BaseModel):
+class AttendantInfo(BaseModel):
     id: int
     name: str
     email: EmailStr | None = None  # Optional by default.
@@ -162,6 +203,12 @@ class AttendandInfo(BaseModel):
     receipt_type: int | None = None
     role: str
     active: bool | None = True
+    
+    # Notification window fields
+    notification_start_time: str | None = None
+    notification_end_time: str | None = None
+    paused_until: datetime | None = None
+    
     attendant_data: AttendantResponse | None = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -214,8 +261,22 @@ class UserUpdate(BaseModel):
     phone: str | None = Field(None, pattern=r"^\+?[1-9]\d{1,14}$")  # Validação do phone
     receipt_type: int | None = None
     active: bool | None = None
+    
+    # Notification window fields  
+    notification_start_time: str | None = Field(None,
+                                                description="Notification window start time (HH:MM)")
+    notification_end_time: str | None = Field(None,
+                                              description="Notification window end time (HH:MM)")
+    paused_until: datetime | None = Field(None,
+                                          description="Pause notifications until this datetime")
+    
     client_data: ClientUpdate | None = None
     attendant_data: AttendantUpdate | None = None
+    
+    @field_validator('notification_start_time', 'notification_end_time')
+    @classmethod
+    def validate_notification_times(cls, v):
+        return validate_time_format(v)
 
     @model_validator(mode="before")
     def check_extra_fields(cls, values):
@@ -235,6 +296,12 @@ class UserResponse(BaseModel):
     receipt_type: int
     role: str
     active: bool
+    
+    # Notification window fields
+    notification_start_time: str | None = None
+    notification_end_time: str | None = None
+    paused_until: datetime | None = None
+    
     client_data: dict | None = None
     attendant_data: dict | None = None
 
@@ -253,6 +320,12 @@ class AssistedUserResponse(BaseModel):
     receipt_type: int
     role: str
     active: bool
+    
+    # Notification window fields
+    notification_start_time: str | None = None
+    notification_end_time: str | None = None
+    paused_until: datetime | None = None
+    
     client_data: dict | None = None
 
     model_config = ConfigDict(from_attributes=True)

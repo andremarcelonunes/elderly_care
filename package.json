@@ -1,0 +1,29 @@
+{
+  "name": "backendeldery-api-tests",
+  "version": "1.0.0",
+  "description": "Playwright API tests for Backend Eldery notification window functionality",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx playwright test backendeldery/tests/api/",
+    "test:headed": "npx playwright test backendeldery/tests/api/ --headed",
+    "test:debug": "npx playwright test backendeldery/tests/api/ --debug",
+    "test:ui": "npx playwright test backendeldery/tests/api/ --ui",
+    "test:contract": "npx playwright test backendeldery/tests/api/notification-window-contract.spec.js",
+    "test:api": "npx playwright test backendeldery/tests/api/notification-window-api.spec.js",
+    "test:report": "npx playwright show-report",
+    "test:runner": "node run-api-tests.js",
+    "install:browsers": "npx playwright install"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  },
+  "keywords": [
+    "playwright",
+    "api-testing",
+    "automated-testing",
+    "fastapi",
+    "notification-window"
+  ],
+  "author": "QA Team",
+  "license": "MIT"
+}

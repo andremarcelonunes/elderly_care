@@ -36,6 +36,7 @@ aiosqlite = "^0.21.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest-cov = "^6.0.0"
+deepsource = "^0.1.2"
 
 [build-system]
 requires = ["poetry-core"]
